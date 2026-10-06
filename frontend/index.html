@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>NeuroForge | AI Review Analyzer</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Three.js for energy particles -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+
+    <!-- Animated background -->
+    <div id="particles"></div>
+
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="brand">
+            <div class="logo">N</div>
+
+            <div>
+                <div class="brand-name">NeuroForge</div>
+                <div class="brand-subtitle">
+                    AI Customer Review Analyzer
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-badge">
+            <span class="status-dot"></span>
+            Hackathon MVP
+        </div>
+    </header>
+
+
+    <main class="container">
+
+        <!-- HERO -->
+        <section class="hero">
+
+            <div class="eyebrow">
+                ✦ CUSTOMER INTELLIGENCE
+            </div>
+
+            <h1>
+                Turn customer reviews
+                <span>into business insights.</span>
+            </h1>
+
+            <p>
+                Upload customer reviews and discover sentiment,
+                recurring topics, complaints, praise and actionable
+                product insights.
+            </p>
+
+        </section>
+
+
+        <!-- UPLOAD -->
+        <section class="glass-card upload-card">
+
+            <div class="section-label">
+                DATA INPUT
+            </div>
+
+            <h2>
+                Upload Customer Reviews
+            </h2>
+
+            <p>
+                Upload a CSV file containing your customer reviews.
+            </p>
+
+            <label for="fileInput" class="upload-button">
+                <span>＋</span>
+                Choose CSV File
+            </label>
+
+            <input
+                id="fileInput"
+                type="file"
+                accept=".csv,text/csv"
+            >
+
+            <div id="fileName" class="file-name">
+                No file selected
+            </div>
+
+        </section>
+
+
+        <!-- STATISTICS -->
+        <section class="stats-grid">
+
+            <div class="glass-card stat-card">
+                <div class="stat-label">
+                    TOTAL REVIEWS
+                </div>
+
+                <div id="totalReviews" class="stat-number">
+                    1,248
+                </div>
+
+                <div class="stat-info">
+                    ↑ Ready for analysis
+                </div>
+            </div>
+
+
+            <div class="glass-card stat-card">
+                <div class="stat-label">
+                    POSITIVE
+                </div>
+
+                <div id="positivePercentage"
+                     class="stat-number positive">
+                    82%
+                </div>
+
+                <div class="stat-info">
+                    Strong customer approval
+                </div>
+            </div>
+
+
+            <div class="glass-card stat-card">
+                <div class="stat-label">
+                    NEGATIVE
+                </div>
+
+                <div id="negativePercentage"
+                     class="stat-number negative">
+                    11%
+                </div>
+
+                <div class="stat-info">
+                    Focus area detected
+                </div>
+            </div>
+
+
+            <div class="glass-card stat-card">
+                <div class="stat-label">
+                    NEUTRAL
+                </div>
+
+                <div id="neutralPercentage"
+                     class="stat-number neutral">
+                    7%
+                </div>
+
+                <div class="stat-info">
+                    Mixed customer feedback
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- REVIEW ANALYSIS -->
+        <section class="glass-card analysis-card">
+
+            <div class="section-header">
+
+                <div>
+                    <div class="section-label">
+                        REVIEW ANALYSIS
+                    </div>
+
+                    <h2>
+                        What are customers saying?
+                    </h2>
+                </div>
+
+                <div class="ai-badge">
+                    ✦ AI ANALYSIS
+                </div>
+
+            </div>
+
+
+            <div class="analysis-grid">
+
+                <!-- POSITIVE -->
+                <div class="topic-box positive-box">
+
+                    <div class="topic-title">
+                        <span class="topic-icon">✓</span>
+                        Top Positive Topics
+                    </div>
+
+                    <div class="topic-list">
+
+                        <div class="topic">
+                            <span>Sound Quality</span>
+                            <strong>34%</strong>
+                        </div>
+
+                        <div class="topic">
+                            <span>Comfort</span>
+                            <strong>27%</strong>
+                        </div>
+
+                        <div class="topic">
+                            <span>Design</span>
+                            <strong>19%</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- NEGATIVE -->
+                <div class="topic-box negative-box">
+
+                    <div class="topic-title">
+                        <span class="topic-icon">!</span>
+                        Top Complaints
+                    </div>
+
+                    <div class="topic-list">
+
+                        <div class="topic">
+                            <span>Battery Life</span>
+                            <strong>31%</strong>
+                        </div>
+
+                        <div class="topic">
+                            <span>Bluetooth</span>
+                            <strong>18%</strong>
+                        </div>
+
+                        <div class="topic">
+                            <span>Price</span>
+                            <strong>14%</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- AI INSIGHT -->
+        <section class="glass-card insight-card">
+
+            <div class="section-label">
+                AI BUSINESS INSIGHT
+            </div>
+
+            <div class="insight-content">
+
+                <div class="ai-icon">
+                    ✦
+                </div>
+
+                <div>
+                    <h3>
+                        What should the business improve?
+                    </h3>
+
+                    <p id="aiSummary">
+                        Customers generally love the product's sound
+                        quality, comfort and design. Battery performance
+                        is the most common complaint. Improving battery
+                        life and Bluetooth stability could improve
+                        customer satisfaction.
+                    </p>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ASK AI -->
+        <section class="glass-card ask-card">
+
+            <div class="section-label">
+                ASK YOUR DATA
+            </div>
+
+            <h2>
+                Ask AI about your reviews
+            </h2>
+
+            <p>
+                Ask a natural-language question about your customer feedback.
+            </p>
+
+            <div class="ask-container">
+
+                <input
+                    id="question"
+                    type="text"
+                    placeholder="What should we improve first?"
+                >
+
+                <button id="askButton">
+                    Ask AI
+                    <span>→</span>
+                </button>
+
+            </div>
+
+            <div id="aiAnswer" class="ai-answer"></div>
+
+        </section>
+
+
+        <!-- RECENT REVIEWS -->
+        <section class="glass-card reviews-card">
+
+            <div class="section-header">
+
+                <div>
+                    <div class="section-label">
+                        CUSTOMER FEEDBACK
+                    </div>
+
+                    <h2>
+                        Recent Reviews
+                    </h2>
+                </div>
+
+                <div id="datasetBadge" class="small-badge">
+                    Sample Dataset
+                </div>
+
+            </div>
+
+
+            <div id="reviewsList" class="reviews-list">
+
+                <div class="review-row">
+
+                    <div class="avatar">
+                        A
+                    </div>
+
+                    <div class="review-content">
+                        <strong>Aisha</strong>
+
+                        <p>
+                            The sound quality is amazing and very
+                            comfortable for long sessions.
+                        </p>
+                    </div>
+
+                    <div class="stars">
+                        ★★★★★
+                    </div>
+
+                    <div class="sentiment positive-sentiment">
+                        Positive
+                    </div>
+
+                </div>
+
+
+                <div class="review-row">
+
+                    <div class="avatar">
+                        H
+                    </div>
+
+                    <div class="review-content">
+                        <strong>Hamza</strong>
+
+                        <p>
+                            Battery dies much faster than expected.
+                            Bluetooth also disconnects sometimes.
+                        </p>
+                    </div>
+
+                    <div class="stars">
+                        ★★☆☆☆
+                    </div>
+
+                    <div class="sentiment negative-sentiment">
+                        Negative
+                    </div>
+
+                </div>
+
+
+                <div class="review-row">
+
+                    <div class="avatar">
+                        S
+                    </div>
+
+                    <div class="review-content">
+                        <strong>Sara</strong>
+
+                        <p>
+                            Beautiful design, excellent audio and
+                            comfortable ear cushions.
+                        </p>
+                    </div>
+
+                    <div class="stars">
+                        ★★★★★
+                    </div>
+
+                    <div class="sentiment positive-sentiment">
+                        Positive
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+
+    <!-- FOOTER -->
+    <footer>
+
+        <div class="footer-logo">
+            NeuroForge
+        </div>
+
+        <div>
+            AI Customer Review Analyzer · AMD Developer Hackathon
+        </div>
+
+    </footer>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>
