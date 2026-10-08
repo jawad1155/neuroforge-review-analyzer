@@ -450,3 +450,365 @@ main,.footer,.nav-wrap{position:relative;z-index:2}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
   .js .reveal,.js body:not(.is-ready) .hero__copy>*{opacity:1;translate:0 0}
 }
+
+/* ==========================================================
+   NeuroForge — Final UI Polish
+   ========================================================== */
+
+/* ---------- Global polish ---------- */
+
+body {
+  letter-spacing: -0.01em;
+}
+
+.container {
+  width: min(1160px, calc(100% - 40px));
+}
+
+/* ---------- Navbar ---------- */
+
+.nav {
+  height: 60px;
+  border-color: rgba(255,255,255,.12);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(18,20,48,.82),
+      rgba(8,10,27,.72)
+    );
+  box-shadow:
+    0 20px 50px -28px rgba(0,0,0,.95),
+    0 0 0 1px rgba(139,92,246,.08),
+    inset 0 1px 0 rgba(255,255,255,.09);
+}
+
+.nav__name {
+  letter-spacing: -.02em;
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  padding-bottom: 72px;
+}
+
+.hero__title {
+  max-width: 760px;
+  text-shadow: 0 12px 45px rgba(0,0,0,.35);
+}
+
+.hero__sub {
+  line-height: 1.75;
+  color: #b6bdd8;
+}
+
+.eyebrow {
+  box-shadow:
+    0 0 24px rgba(139,92,246,.08),
+    inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* ---------- Buttons ---------- */
+
+.btn-holo {
+  min-height: 50px;
+  padding: 13px 22px;
+  border-radius: 13px;
+  letter-spacing: -.01em;
+}
+
+.btn-holo--primary {
+  box-shadow:
+    0 12px 32px -15px rgba(99,102,241,.85),
+    inset 0 1px 0 rgba(255,255,255,.14);
+}
+
+.btn-holo:hover {
+  transform: translateY(-2px);
+}
+
+/* ---------- Dashboard ---------- */
+
+.dash {
+  padding-top: 58px;
+}
+
+.dash__head {
+  margin-bottom: 30px;
+}
+
+.dash__title {
+  letter-spacing: -.035em;
+}
+
+.dash__sub {
+  color: #9fa8c7;
+  line-height: 1.7;
+}
+
+/* ---------- Glass cards ---------- */
+
+.glass {
+  border-color: rgba(255,255,255,.105);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.075),
+      rgba(255,255,255,.025) 58%,
+      rgba(255,255,255,.045)
+    );
+}
+
+.card {
+  padding: clamp(24px, 4vw, 36px);
+}
+
+.card__title {
+  letter-spacing: -.025em;
+}
+
+.card__desc {
+  color: #9fa8c7;
+  line-height: 1.65;
+}
+
+/* ---------- Upload ---------- */
+
+.upload__zone {
+  min-height: 150px;
+  padding: 26px;
+  border-color: rgba(167,139,250,.38);
+  background:
+    radial-gradient(
+      500px 180px at 10% 0%,
+      rgba(139,92,246,.10),
+      transparent 70%
+    ),
+    rgba(139,92,246,.035);
+}
+
+.upload__zone:hover,
+.upload__zone.is-dragover {
+  border-color: rgba(167,139,250,.8);
+  background:
+    radial-gradient(
+      500px 180px at 10% 0%,
+      rgba(139,92,246,.16),
+      transparent 70%
+    ),
+    rgba(139,92,246,.06);
+}
+
+.file-status {
+  line-height: 1.5;
+}
+
+/* ---------- Stat cards ---------- */
+
+.stats {
+  gap: 14px;
+}
+
+.stat {
+  min-height: 155px;
+  padding: 23px;
+  border-radius: 18px;
+}
+
+.stat__label {
+  letter-spacing: .12em;
+}
+
+.stat__value {
+  margin-top: 12px;
+  font-size: clamp(2.15rem, 4vw, 2.75rem);
+}
+
+.stat__viz {
+  opacity: .8;
+}
+
+/* ---------- Sentiment ---------- */
+
+.sent {
+  gap: clamp(28px, 5vw, 56px);
+}
+
+.legend {
+  gap: 10px;
+}
+
+.legend li {
+  padding: 13px 16px;
+  background: rgba(255,255,255,.025);
+  transition:
+    transform .25s var(--ease),
+    border-color .25s,
+    background .25s;
+}
+
+.legend li:hover {
+  transform: translateX(4px);
+  border-color: rgba(255,255,255,.16);
+  background: rgba(255,255,255,.045);
+}
+
+/* ---------- Topics ---------- */
+
+.analysis__grid {
+  gap: clamp(32px, 6vw, 72px);
+}
+
+.bars {
+  gap: 24px;
+}
+
+.bar__row {
+  font-size: .94rem;
+}
+
+.bar__track {
+  height: 8px;
+}
+
+/* ---------- AI Insight ---------- */
+
+.insight {
+  overflow: hidden;
+}
+
+.insight__text {
+  line-height: 1.8;
+  color: #b6bdd8;
+}
+
+.insight__title {
+  letter-spacing: -.03em;
+}
+
+/* ---------- Ask AI ---------- */
+
+.input {
+  min-height: 50px;
+  background: rgba(3,5,16,.72);
+}
+
+.input::placeholder {
+  opacity: .75;
+}
+
+.answer {
+  line-height: 1.7;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(139,92,246,.11),
+      rgba(59,130,246,.045)
+    );
+}
+
+/* ---------- Reviews ---------- */
+
+.review-list {
+  gap: 8px;
+}
+
+.review {
+  padding: 15px;
+  background: rgba(255,255,255,.012);
+}
+
+.review__text {
+  line-height: 1.65;
+}
+
+.sentiment {
+  letter-spacing: .01em;
+}
+
+/* ---------- Footer ---------- */
+
+.footer {
+  margin-top: 20px;
+  background: rgba(4,6,16,.72);
+}
+
+/* ---------- Better mobile spacing ---------- */
+
+@media (max-width: 720px) {
+
+  .container {
+    width: calc(100% - 24px);
+  }
+
+  .hero {
+    padding-top: 88px;
+    padding-bottom: 44px;
+  }
+
+  .hero__sub {
+    line-height: 1.65;
+  }
+
+  .hero__cta {
+    margin-top: 28px;
+  }
+
+  .dash {
+    padding-top: 36px;
+    padding-bottom: 64px;
+  }
+
+  .card {
+    padding: 22px 18px;
+  }
+
+  .stat {
+    min-height: 135px;
+  }
+
+  .upload__zone {
+    padding: 20px;
+  }
+
+  .insight {
+    padding: 24px 20px;
+  }
+
+  .review {
+    padding: 15px 12px;
+  }
+}
+
+/* ---------- Reduce visual noise on small screens ---------- */
+
+@media (max-width: 520px) {
+
+  .nav {
+    height: 52px;
+  }
+
+  .nav__name {
+    font-size: 14px;
+  }
+
+  .pill {
+    font-size: 11px;
+  }
+
+  .hero__title {
+    line-height: 1.08;
+  }
+
+  .hero__stage {
+    height: 260px;
+  }
+
+  .stage-labels {
+    font-size: 10px;
+  }
+
+  .btn-holo {
+    min-height: 48px;
+  }
+}

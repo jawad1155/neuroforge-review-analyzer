@@ -1,304 +1,972 @@
 import os
-import pandas as pd
 import json
-import time
 import random
-from typing import List, Dict, Any, Optional
-from groq import Groq
+import time
+from io import BytesIO
 from pathlib import Path
-from dotenv import load_dotenv
+from typing import Any, Dict, List
 
-# Load environment variables from backend/.env
-env_path = Path(__file__).resolve().parent / ".env"
-load_dotenv(dotenv_path=env_path)
+import pandas as pd
+from dotenv import load_dotenv
+from groq import Groq
+
+
+# Load backend/.env
+ENV_PATH = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
+
 
 class ReviewAnalyzer:
-    """
-    Handles the processing of customer reviews, including cleaning,
-    basic statistics, and AI-powered analysis using Google Gemini.
-    """
+    """Customer-review CSV analyzer powered by Groq."""
 
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
         self.model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        self.client = Groq(api_key=self.api_key) if self.api_key else None
 
-        if not self.api_key:
-            # We don't raise an error here to allow the server to start,
-            # but AI methods will fail if the key is missing.
-            self.client = None
-        else:
-            self.client = Groq(api_key=self.api_key)
-
+    # ---------------------------------------------------------
+    # CSV / DATA HELPERS
+    # ---------------------------------------------------------
     def detect_review_column(self, df: pd.DataFrame) -> str:
-        """
-        Identifies the column containing review text based on common keywords.
-        """
-        keywords = ['review', 'text', 'comment', 'feedback', 'body']
-        for col in df.columns:
-            if any(kw in col.lower() for kw in keywords):
-                return col
-        raise ValueError("CSV must contain a review column (e.g., 'review', 'text', 'comment', 'feedback').")
+        keywords = ("review", "text", "comment", "feedback", "body")
+        skip = ("id", "date", "time", "name", "rating", "score", "votes", "type")
 
-    def clean_data(self, df: pd.DataFrame, column_name: str) -> pd.DataFrame:
-        """
-        Cleans the review data by removing NaNs, duplicates, and extra whitespace.
-        """
-        # Drop rows where review text is missing
+        def avg_len(col: str) -> float:
+            values = df[col].dropna().astype(str).str.strip()
+            values = values[values != ""]
+            return float(values.str.len().mean()) if len(values) else 0.0
+
+        candidates = [
+            col for col in df.columns
+            if isinstance(col, str)
+            and any(k in col.lower() for k in keywords)
+            and not any(k in col.lower() for k in skip)
+            and avg_len(col) > 0
+        ]
+
+        if candidates:
+            return max(candidates, key=avg_len)
+
+        text_columns = [
+            col for col in df.columns
+            if df[col].dtype == object
+            or pd.api.types.is_string_dtype(df[col].dtype)
+        ]
+
+        text_columns = [
+            col for col in text_columns
+            if avg_len(col) > 0
+        ]
+
+        if text_columns:
+            best = max(text_columns, key=avg_len)
+
+            if avg_len(best) > 20:
+                return best
+
+        raise ValueError(
+            "CSV must contain a review column "
+            "(e.g. 'review', 'text', 'comment', 'feedback')."
+        )
+
+    def clean_data(
+        self,
+        df: pd.DataFrame,
+        column_name: str
+    ) -> pd.DataFrame:
+
+        df = df.copy()
+
         df = df.dropna(subset=[column_name])
 
-        # Remove duplicate reviews
-        df = df.drop_duplicates(subset=[column_name])
+        df[column_name] = (
+            df[column_name]
+            .astype(str)
+            .str.strip()
+        )
 
-        # Strip whitespace
-        df[column_name] = df[column_name].astype(str).str.strip()
-
-        # Remove empty strings after stripping
         df = df[df[column_name] != ""]
 
-        return df
+        df = df.drop_duplicates(
+            subset=[column_name]
+        )
 
-    def calculate_basic_stats(self, df: pd.DataFrame, column_name: str) -> Dict[str, Any]:
-        """
-        Calculates basic statistics from the cleaned review data.
-        """
-        total_reviews = len(df)
-        if total_reviews == 0:
+        return df.reset_index(drop=True)
+
+    def calculate_basic_stats(
+        self,
+        df: pd.DataFrame,
+        column_name: str
+    ) -> Dict[str, Any]:
+
+        total = len(df)
+
+        if total == 0:
             return {
                 "total_reviews": 0,
                 "average_length": 0,
-                "review_count_by_rating": {}
+                "rating_distribution": {}
             }
 
-        avg_length = df[column_name].str.len().mean()
+        average_length = round(
+            float(df[column_name].str.len().mean()),
+            2
+        )
 
-        # If rating column exists, calculate distribution
-        rating_dist = {}
-        rating_col = next((col for col in df.columns if 'rating' in col.lower()), None)
+        rating_distribution: Dict[str, str] = {}
+
+        rating_col = next(
+            (
+                c for c in df.columns
+                if "rating" in str(c).lower()
+            ),
+            None
+        )
+
         if rating_col:
-            rating_dist = df[rating_col].value_counts(normalize=True).to_dict()
-            # Convert keys to string for JSON serialization
-            rating_dist = {str(k): f"{v*100:.1f}%" for k, v in rating_dist.items()}
+            dist = (
+                df[rating_col]
+                .value_counts(normalize=True)
+                .to_dict()
+            )
+
+            rating_distribution = {
+                str(k): f"{float(v) * 100:.1f}%"
+                for k, v in dist.items()
+            }
 
         return {
-            "total_reviews": total_reviews,
-            "average_length": round(avg_length, 2),
-            "rating_distribution": rating_dist
+            "total_reviews": total,
+            "average_length": average_length,
+            "rating_distribution": rating_distribution,
         }
 
-    def _call_groq_with_retry(self, contents: str, json_mode: bool = False, max_retries: int = 5) -> str:
-        """
-        Helper to call Groq API with exponential backoff for rate limits and server errors.
-        """
-        for attempt in range(max_retries):
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=[{"role": "user", "content": contents}],
-                    response_format={"type": "json_object"} if json_mode else None
-                )
-                return response.choices[0].message.content
-            except Exception as e:
-                error_msg = str(e).lower()
-                # Retry on rate limits (429) or service unavailable (503/500)
-                if "429" in error_msg or "503" in error_msg or "500" in error_msg or "unavailable" in error_msg:
-                    if attempt == max_retries - 1:
-                        raise e
+    @staticmethod
+    def _find_column(
+        df: pd.DataFrame,
+        keywords: tuple
+    ) -> str | None:
 
-                    # Exponential backoff: 2^attempt + random jitter
-                    wait_time = (2 ** attempt) + random.uniform(0, 1)
-                    print(f"Groq API error encountered. Retrying in {wait_time:.2f}s... (Attempt {attempt + 1}/{max_retries})")
-                    time.sleep(wait_time)
-                else:
-                    # Fail immediately for other errors (e.g. 400, 401, 403)
-                    raise e
+        for col in df.columns:
+            name = str(col).lower().strip()
+
+            if any(k in name for k in keywords):
+                return col
+
         return None
 
-    def analyze_with_groq(self, reviews: List[str]) -> Dict[str, Any]:
-        """
-        Sends a batch of reviews to Groq and returns a structured analysis.
-        """
+    @staticmethod
+    def _parse_rating(value: Any) -> float:
+
+        try:
+            number = float(str(value).strip())
+
+            return max(
+                0.0,
+                min(5.0, number)
+            )
+
+        except (TypeError, ValueError):
+            return 0.0
+
+    # ---------------------------------------------------------
+    # GROQ
+    # ---------------------------------------------------------
+    def _call_groq_with_retry(
+        self,
+        contents: str,
+        json_mode: bool = False,
+        max_retries: int = 5,
+    ) -> str:
+
         if not self.client:
-            raise RuntimeError("GROQ_API_KEY is not configured.")
+            raise RuntimeError(
+                "GROQ_API_KEY is not configured."
+            )
+
+        last_error = None
+
+        for attempt in range(max_retries):
+
+            try:
+
+                request_data = {
+                    "model": self.model_name,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": contents
+                        }
+                    ],
+                }
+
+                if json_mode:
+                    request_data["response_format"] = {
+                        "type": "json_object"
+                    }
+
+                response = (
+                    self.client
+                    .chat
+                    .completions
+                    .create(**request_data)
+                )
+
+                return (
+                    response
+                    .choices[0]
+                    .message
+                    .content
+                    or ""
+                )
+
+            except Exception as error:
+
+                last_error = error
+
+                message = str(error).lower()
+
+                retryable = any(
+                    token in message
+                    for token in (
+                        "429",
+                        "500",
+                        "503",
+                        "rate limit",
+                        "unavailable",
+                        "timeout"
+                    )
+                )
+
+                if (
+                    not retryable
+                    or attempt == max_retries - 1
+                ):
+                    raise
+
+                wait_time = (
+                    (2 ** attempt)
+                    + random.uniform(0, 1)
+                )
+
+                print(
+                    f"Groq temporary error. "
+                    f"Retrying in {wait_time:.2f}s..."
+                )
+
+                time.sleep(wait_time)
+
+        raise RuntimeError(
+            f"Groq API request failed: {last_error}"
+        )
+
+    def analyze_with_groq(
+        self,
+        reviews: List[str]
+    ) -> Dict[str, Any]:
+
+        if not self.client:
+            raise RuntimeError(
+                "GROQ_API_KEY is not configured."
+            )
+
+        count = len(reviews)
+
+        numbered = "\n".join(
+            f"{i + 1}. {review}"
+            for i, review in enumerate(reviews)
+        )
 
         prompt = f"""
-        Analyze the following customer reviews and provide a structured JSON response.
+You are an expert customer review analyst.
 
-        Required JSON format:
-        {{
-          "sentiment": {{
-            "positive": count,
-            "neutral": count,
-            "negative": count
-          }},
-          "positive_topics": [
-            {{"topic": "Topic Name", "percentage": value}},
-            ...
-          ],
-          "negative_topics": [
-            {{"topic": "Topic Name", "percentage": value}},
-            ...
-          ],
-          "common_praise": ["praise 1", "praise 2"],
-          "common_complaints": ["complaint 1", "complaint 2"],
-          "recommendations": ["recommendation 1", "recommendation 2"],
-          "summary": "A concise overall summary of the reviews."
-        }}
+Analyze exactly {count} customer reviews.
 
-        Constraint: Return ONLY the raw JSON object. Do not include markdown formatting, explanations, or introductory text.
+Classify EVERY review with exactly one sentiment:
+positive, neutral, or negative.
 
-        Reviews:
-        {chr(10).join(reviews)}
+The order of sentiment_labels MUST match the order
+of the reviews.
+
+Return ONLY valid JSON in this exact structure:
+
+{{
+  "sentiment_labels": [
+    "positive",
+    "negative",
+    "neutral"
+  ],
+
+  "positive_topics": [
+    {{
+      "topic": "Topic Name",
+      "percentage": 40
+    }}
+  ],
+
+  "negative_topics": [
+    {{
+      "topic": "Topic Name",
+      "percentage": 30
+    }}
+  ],
+
+  "common_praise": [
+    "praise 1"
+  ],
+
+  "common_complaints": [
+    "complaint 1"
+  ],
+
+  "recommendations": [
+    "recommendation 1"
+  ],
+
+  "summary": "A concise overall summary."
+}}
+
+Rules:
+
+1. sentiment_labels MUST contain exactly {count} items.
+2. Every label must be exactly positive, neutral, or negative.
+3. Do not skip or add reviews.
+4. Topic percentage values MUST be numbers from 0 to 100.
+5. Return JSON only. No markdown.
+
+Reviews:
+
+{numbered}
+"""
+
+        for attempt in range(3):
+
+            try:
+
+                raw = self._call_groq_with_retry(
+                    prompt,
+                    json_mode=True
+                )
+
+                result = json.loads(raw)
+
+                labels = result.get(
+                    "sentiment_labels"
+                )
+
+                if (
+                    not isinstance(labels, list)
+                    or len(labels) != count
+                ):
+
+                    raise ValueError(
+                        f"Expected {count} sentiment labels, "
+                        f"got "
+                        f"{len(labels) if isinstance(labels, list) else 'invalid'}"
+                    )
+
+                labels = [
+                    str(label)
+                    .strip()
+                    .lower()
+                    for label in labels
+                ]
+
+                if any(
+                    label not in {
+                        "positive",
+                        "neutral",
+                        "negative"
+                    }
+                    for label in labels
+                ):
+
+                    raise ValueError(
+                        "Groq returned an invalid sentiment label."
+                    )
+
+                result["sentiment_labels"] = labels
+
+                result["sentiment"] = {
+                    "positive": labels.count("positive"),
+                    "neutral": labels.count("neutral"),
+                    "negative": labels.count("negative"),
+                }
+
+                return result
+
+            except Exception as error:
+
+                print(
+                    f"Invalid Groq analysis "
+                    f"(attempt {attempt + 1}/3): {error}"
+                )
+
+                if attempt == 2:
+                    raise RuntimeError(
+                        "Groq returned an invalid analysis "
+                        "after 3 attempts."
+                    ) from error
+
+                time.sleep(1)
+
+        raise RuntimeError(
+            "AI analysis failed."
+        )
+
+    # ---------------------------------------------------------
+    # RESULT COMBINATION
+    # ---------------------------------------------------------
+    @staticmethod
+    def _merge_topics(
+        results: List[Dict[str, Any]],
+        key: str
+    ) -> List[Dict[str, Any]]:
+
+        """
+        Merge duplicate topics while preserving percentages.
+
+        Groq percentages describe each batch, so duplicate topics
+        are combined with a batch-size-weighted average when
+        batch sizes are available.
         """
 
-        try:
-            response_text = self._call_groq_with_retry(
-                contents=prompt,
-                json_mode=True
+        merged: Dict[str, Dict[str, Any]] = {}
+        weights: Dict[str, float] = {}
+
+        for result in results:
+
+            labels = result.get(
+                "sentiment_labels"
+            ) or []
+
+            weight = max(
+                len(labels),
+                1
             )
-            return json.loads(response_text)
-        except Exception as e:
-            print(f"Error calling Groq API: {e}")
-            raise RuntimeError(f"AI analysis failed: {str(e)}")
 
-    def combine_analysis_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Aggregates results from multiple AI batches into a single final analysis.
-        """
+            for raw in result.get(
+                key,
+                []
+            ) or []:
+
+                if isinstance(raw, str):
+
+                    name = raw.strip()
+                    percent = 0.0
+
+                elif isinstance(raw, dict):
+
+                    name = str(
+                        raw.get(
+                            "topic",
+                            raw.get(
+                                "name",
+                                ""
+                            )
+                        )
+                    ).strip()
+
+                    try:
+
+                        percent = float(
+                            raw.get(
+                                "percentage",
+                                raw.get(
+                                    "percent",
+                                    0
+                                )
+                            )
+                        )
+
+                    except (
+                        TypeError,
+                        ValueError
+                    ):
+
+                        percent = 0.0
+
+                else:
+                    continue
+
+                if not name:
+                    continue
+
+                percent = max(
+                    0.0,
+                    min(100.0, percent)
+                )
+
+                lookup = name.casefold()
+
+                if lookup not in merged:
+
+                    merged[lookup] = {
+                        "name": name,
+                        "percent": 0.0
+                    }
+
+                    weights[lookup] = 0.0
+
+                merged[lookup]["percent"] += (
+                    percent * weight
+                )
+
+                weights[lookup] += weight
+
+        topics = []
+
+        for lookup, item in merged.items():
+
+            item["percent"] = (
+                round(
+                    item["percent"]
+                    / weights[lookup],
+                    2
+                )
+                if weights[lookup]
+                else 0
+            )
+
+            topics.append(item)
+
+        topics.sort(
+            key=lambda x: x["percent"],
+            reverse=True
+        )
+
+        return topics[:5]
+
+    def combine_analysis_results(
+        self,
+        results: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+
         if not results:
-            return {}
 
-        final = {
-            "sentiment": {"positive": 0, "neutral": 0, "negative": 0},
-            "positive_topics": [],
-            "negative_topics": [],
-            "common_praise": [],
-            "common_complaints": [],
-            "recommendations": [],
-            "summary": ""
+            return {
+                "sentiment": {
+                    "positive": 0,
+                    "neutral": 0,
+                    "negative": 0
+                },
+                "positive_topics": [],
+                "negative_topics": [],
+                "common_praise": [],
+                "common_complaints": [],
+                "recommendations": [],
+                "summary": "",
+            }
+
+        final_sentiment = {
+            "positive": 0,
+            "neutral": 0,
+            "negative": 0
         }
 
-        for res in results:
-            # Aggregate sentiment
-            s = res.get("sentiment", {})
-            final["sentiment"]["positive"] += s.get("positive", 0)
-            final["sentiment"]["neutral"] += s.get("neutral", 0)
-            final["sentiment"]["negative"] += s.get("negative", 0)
+        praise: List[str] = []
+        complaints: List[str] = []
+        recommendations: List[str] = []
 
-            # Collect topics (merging as unique lists for simplicity in this version)
-            final["positive_topics"].extend(res.get("positive_topics", []))
-            final["negative_topics"].extend(res.get("negative_topics", []))
+        for result in results:
 
-            # Collect praise/complaints
-            final["common_praise"].extend(res.get("common_praise", []))
-            final["common_complaints"].extend(res.get("common_complaints", []))
-            final["recommendations"].extend(res.get("recommendations", []))
+            sentiment = result.get(
+                "sentiment",
+                {}
+            )
 
-        # Deduplicate lists and limit size
-        final["common_praise"] = list(set(final["common_praise"]))[:5]
-        final["common_complaints"] = list(set(final["common_complaints"]))[:5]
-        final["recommendations"] = list(set(final["recommendations"]))[:5]
+            for label in final_sentiment:
 
-        # For a simple aggregation, we take the summary from the first batch
-        # or we could ask Gemini to summarize the summaries.
-        final["summary"] = results[0].get("summary", "No summary available.")
+                final_sentiment[label] += int(
+                    sentiment.get(
+                        label,
+                        0
+                    ) or 0
+                )
 
-        # Simplify topics for aggregation (just list unique ones)
-        final["positive_topics"] = list(set([t['topic'] for t in final["positive_topics"]]))[:5]
-        final["negative_topics"] = list(set([t['topic'] for t in final["negative_topics"]]))[:5]
+            praise.extend(
+                result.get(
+                    "common_praise",
+                    []
+                ) or []
+            )
 
-        return final
+            complaints.extend(
+                result.get(
+                    "common_complaints",
+                    []
+                ) or []
+            )
 
-    def _chunk_reviews(self, reviews: List[str], chunk_size: int = 200) -> List[List[str]]:
-        """
-        Splits the list of reviews into smaller batches to avoid API token limits.
-        """
-        return [reviews[i : i + chunk_size] for i in range(0, len(reviews), chunk_size)]
+            recommendations.extend(
+                result.get(
+                    "recommendations",
+                    []
+                ) or []
+            )
 
-    def process_reviews(self, file_content: bytes) -> Dict[str, Any]:
-        """
-        The main orchestration flow: CSV -> Clean -> Stats -> AI Analysis -> Response.
-        """
+        def unique(
+            items: List[Any]
+        ) -> List[str]:
+
+            seen = set()
+            output = []
+
+            for item in items:
+
+                text = str(item).strip()
+
+                if (
+                    text
+                    and text.casefold()
+                    not in seen
+                ):
+
+                    seen.add(
+                        text.casefold()
+                    )
+
+                    output.append(text)
+
+            return output[:5]
+
+        return {
+            "sentiment": final_sentiment,
+
+            "positive_topics":
+                self._merge_topics(
+                    results,
+                    "positive_topics"
+                ),
+
+            "negative_topics":
+                self._merge_topics(
+                    results,
+                    "negative_topics"
+                ),
+
+            "common_praise":
+                unique(praise),
+
+            "common_complaints":
+                unique(complaints),
+
+            "recommendations":
+                unique(recommendations),
+
+            "summary":
+                str(
+                    results[0].get(
+                        "summary",
+                        "No summary available."
+                    )
+                ).strip(),
+        }
+
+    @staticmethod
+    def _chunk_reviews(
+        reviews: List[str],
+        chunk_size: int = 50
+    ) -> List[List[str]]:
+
+        return [
+            reviews[i:i + chunk_size]
+            for i in range(
+                0,
+                len(reviews),
+                chunk_size
+            )
+        ]
+
+    # ---------------------------------------------------------
+    # MAIN PIPELINE
+    # ---------------------------------------------------------
+    def process_reviews(
+        self,
+        file_content: bytes
+    ) -> Dict[str, Any]:
+
         try:
-            # Read CSV - try UTF-8 first, fallback to latin-1 for Excel/legacy files
-            from io import BytesIO
+
             try:
-                df = pd.read_csv(BytesIO(file_content), encoding='utf-8')
+
+                df = pd.read_csv(
+                    BytesIO(file_content),
+                    encoding="utf-8"
+                )
+
             except UnicodeDecodeError:
-                df = pd.read_csv(BytesIO(file_content), encoding='latin-1')
 
-            # 1. Validate and Detect Column
-            review_col = self.detect_review_column(df)
+                df = pd.read_csv(
+                    BytesIO(file_content),
+                    encoding="latin-1"
+                )
 
-            # 2. Clean Data
-            df_cleaned = self.clean_data(df, review_col)
+            review_column = (
+                self.detect_review_column(df)
+            )
 
-            # 3. Calculate Local Stats
-            stats = self.calculate_basic_stats(df_cleaned, review_col)
+            df_cleaned = self.clean_data(
+                df,
+                review_column
+            )
 
-            # 4. AI Analysis with Batching
-            reviews_list = df_cleaned[review_col].tolist()
-            batches = self._chunk_reviews(reviews_list)
+            stats = self.calculate_basic_stats(
+                df_cleaned,
+                review_column
+            )
 
-            batch_results = []
-            for batch in batches:
-                batch_results.append(self.analyze_with_groq(batch))
+            reviews_list = (
+                df_cleaned[review_column]
+                .astype(str)
+                .tolist()
+            )
 
-            # 5. Combine Results
-            ai_analysis = self.combine_analysis_results(batch_results)
+            batches = self._chunk_reviews(
+                reviews_list,
+                50
+            )
 
-            # Calculate sentiment percentages for the response
-            total_sentiment = sum(ai_analysis["sentiment"].values())
+            batch_results: List[
+                Dict[str, Any]
+            ] = []
+
+            review_details: List[
+                Dict[str, Any]
+            ] = []
+
+            name_column = self._find_column(
+                df_cleaned,
+                (
+                    "name",
+                    "customer",
+                    "user",
+                    "author"
+                )
+            )
+
+            rating_column = self._find_column(
+                df_cleaned,
+                (
+                    "rating",
+                    "score",
+                    "stars"
+                )
+            )
+
+            for batch_index, batch in enumerate(
+                batches
+            ):
+
+                print(
+                    f"Analyzing batch "
+                    f"{batch_index + 1}/"
+                    f"{len(batches)}..."
+                )
+
+                result = self.analyze_with_groq(
+                    batch
+                )
+
+                batch_results.append(result)
+
+                labels = result[
+                    "sentiment_labels"
+                ]
+
+                start = batch_index * 50
+
+                for row_number, (
+                    review_text,
+                    label
+                ) in enumerate(
+                    zip(batch, labels),
+                    start=start + 1
+                ):
+
+                    row = df_cleaned.iloc[
+                        row_number - 1
+                    ]
+
+                    name = (
+                        str(row[name_column]).strip()
+                        if name_column
+                        else f"Customer {row_number}"
+                    )
+
+                    if (
+                        not name
+                        or name.lower() == "nan"
+                    ):
+
+                        name = (
+                            f"Customer {row_number}"
+                        )
+
+                    rating = (
+                        self._parse_rating(
+                            row[rating_column]
+                        )
+                        if rating_column
+                        else 0
+                    )
+
+                    review_details.append({
+                        "name": name,
+                        "text": str(review_text),
+                        "rating": rating,
+                        "sentiment": label.capitalize(),
+                    })
+
+            ai_analysis = (
+                self.combine_analysis_results(
+                    batch_results
+                )
+            )
+
+            counts = ai_analysis[
+                "sentiment"
+            ]
+
+            total_sentiment = sum(
+                counts.values()
+            )
+
             sentiment_pct = {
-                k: round((v / total_sentiment * 100), 2) if total_sentiment > 0 else 0
-                for k, v in ai_analysis["sentiment"].items()
+                key: round(
+                    (value / total_sentiment) * 100,
+                    2
+                )
+                if total_sentiment
+                else 0
+                for key, value
+                in counts.items()
             }
 
             return {
                 "success": True,
+
                 "stats": {
-                    "total_reviews": stats["total_reviews"],
-                    "average_length": stats["average_length"],
-                    "rating_distribution": stats["rating_distribution"]
+                    "total_reviews":
+                        stats["total_reviews"],
+
+                    "average_length":
+                        stats["average_length"],
+
+                    "rating_distribution":
+                        stats["rating_distribution"],
                 },
-                "sentiment": sentiment_pct,
-                "positive_topics": ai_analysis["positive_topics"],
-                "negative_topics": ai_analysis["negative_topics"],
-                "common_praise": ai_analysis["common_praise"],
-                "common_complaints": ai_analysis["common_complaints"],
-                "recommendations": ai_analysis["recommendations"],
-                "summary": ai_analysis["summary"]
+
+                "sentiment":
+                    sentiment_pct,
+
+                "positive_topics":
+                    ai_analysis[
+                        "positive_topics"
+                    ],
+
+                "negative_topics":
+                    ai_analysis[
+                        "negative_topics"
+                    ],
+
+                "common_praise":
+                    ai_analysis[
+                        "common_praise"
+                    ],
+
+                "common_complaints":
+                    ai_analysis[
+                        "common_complaints"
+                    ],
+
+                "recommendations":
+                    ai_analysis[
+                        "recommendations"
+                    ],
+
+                "summary":
+                    ai_analysis[
+                        "summary"
+                    ],
+
+                "reviews":
+                    review_details,
             }
-        except ValueError as ve:
-            return {"success": False, "error": str(ve)}
-        except Exception as e:
-            print(f"Internal Error in process_reviews: {e}")
-            return {"success": False, "error": "An unexpected error occurred while processing the file."}
 
-    def answer_question(self, reviews: List[str], question: str) -> str:
-        """
-        Uses Groq to answer a natural language question about the provided reviews.
-        """
+        except ValueError as error:
+
+            return {
+                "success": False,
+                "error": str(error)
+            }
+
+        except Exception as error:
+
+            print(
+                f"Internal Error in process_reviews: "
+                f"{error}"
+            )
+
+            return {
+                "success": False,
+                "error": str(error)
+            }
+
+    # ---------------------------------------------------------
+    # ASK AI
+    # ---------------------------------------------------------
+    def answer_question(
+        self,
+        reviews: List[str],
+        question: str
+    ) -> str:
+
         if not self.client:
-            raise RuntimeError("GROQ_API_KEY is not configured.")
+            raise RuntimeError(
+                "GROQ_API_KEY is not configured."
+            )
 
-        # Concatenate reviews into a single block of text
-        context = "\n".join(reviews)
+        context = "\n".join(
+            str(review)
+            for review in reviews
+            if str(review).strip()
+        )
 
         prompt = f"""
-        You are an expert customer experience analyst. Based on the provided reviews,
-        answer the user's question accurately and concisely.
+You are an expert customer experience analyst.
 
-        Context (Customer Reviews):
-        {context}
+Use ONLY the customer reviews below to answer
+the user's question.
 
-        User Question: {question}
+Do not invent information that is not supported
+by the reviews.
 
-        Answer:
-        """
+Give a clear and practical answer for a business owner.
+
+Customer Reviews:
+
+{context}
+
+User Question:
+
+{question}
+"""
 
         try:
-            response_text = self._call_groq_with_retry(contents=prompt)
-            return response_text
-        except Exception as e:
-            print(f"Error calling Groq API for Q&A: {e}")
-            raise RuntimeError(f"AI analysis failed: {str(e)}")
+
+            return self._call_groq_with_retry(
+                prompt,
+                json_mode=False
+            )
+
+        except Exception as error:
+
+            print(
+                f"Error calling Groq API for Q&A: "
+                f"{error}"
+            )
+
+            raise RuntimeError(
+                f"AI analysis failed: {str(error)}"
+            ) from error
