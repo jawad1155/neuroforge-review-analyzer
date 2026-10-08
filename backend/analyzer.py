@@ -4,7 +4,7 @@ import json
 import time
 import random
 from typing import List, Dict, Any, Optional
-from google import genai
+from groq import Groq
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -19,15 +19,15 @@ class ReviewAnalyzer:
     """
 
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY")
-        self.model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        self.api_key = os.getenv("GROQ_API_KEY")
+        self.model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
         if not self.api_key:
             # We don't raise an error here to allow the server to start,
             # but AI methods will fail if the key is missing.
             self.client = None
         else:
-            self.client = genai.Client(api_key=self.api_key)
+            self.client = Groq(api_key=self.api_key)
 
     def detect_review_column(self, df: pd.DataFrame) -> str:
         """
@@ -85,39 +85,40 @@ class ReviewAnalyzer:
             "rating_distribution": rating_dist
         }
 
-    def _call_gemini_with_retry(self, contents: str, config: Optional[genai.types.GenerateContentConfig] = None, max_retries: int = 5) -> Any:
+    def _call_groq_with_retry(self, contents: str, json_mode: bool = False, max_retries: int = 5) -> str:
         """
-        Helper to call Gemini API with exponential backoff for 503 errors.
+        Helper to call Groq API with exponential backoff for rate limits and server errors.
         """
         for attempt in range(max_retries):
             try:
-                return self.client.models.generate_content(
+                response = self.client.chat.completions.create(
                     model=self.model_name,
-                    contents=contents,
-                    config=config
+                    messages=[{"role": "user", "content": contents}],
+                    response_format={"type": "json_object"} if json_mode else None
                 )
+                return response.choices[0].message.content
             except Exception as e:
                 error_msg = str(e).lower()
-                # Retry only on 503 UNAVAILABLE or high demand errors
-                if "503" in error_msg or "unavailable" in error_msg or "high demand" in error_msg:
+                # Retry on rate limits (429) or service unavailable (503/500)
+                if "429" in error_msg or "503" in error_msg or "500" in error_msg or "unavailable" in error_msg:
                     if attempt == max_retries - 1:
                         raise e
 
                     # Exponential backoff: 2^attempt + random jitter
                     wait_time = (2 ** attempt) + random.uniform(0, 1)
-                    print(f"Gemini API 503 encountered. Retrying in {wait_time:.2f}s... (Attempt {attempt + 1}/{max_retries})")
+                    print(f"Groq API error encountered. Retrying in {wait_time:.2f}s... (Attempt {attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                 else:
                     # Fail immediately for other errors (e.g. 400, 401, 403)
                     raise e
         return None
 
-    def analyze_with_gemini(self, reviews: List[str]) -> Dict[str, Any]:
+    def analyze_with_groq(self, reviews: List[str]) -> Dict[str, Any]:
         """
-        Sends a batch of reviews to Gemini and returns a structured analysis.
+        Sends a batch of reviews to Groq and returns a structured analysis.
         """
         if not self.client:
-            raise RuntimeError("GEMINI_API_KEY is not configured.")
+            raise RuntimeError("GROQ_API_KEY is not configured.")
 
         prompt = f"""
         Analyze the following customer reviews and provide a structured JSON response.
@@ -150,15 +151,13 @@ class ReviewAnalyzer:
         """
 
         try:
-            response = self._call_gemini_with_retry(
+            response_text = self._call_groq_with_retry(
                 contents=prompt,
-                config=genai.types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                )
+                json_mode=True
             )
-            return json.loads(response.text)
+            return json.loads(response_text)
         except Exception as e:
-            print(f"Error calling Gemini API: {e}")
+            print(f"Error calling Groq API: {e}")
             raise RuntimeError(f"AI analysis failed: {str(e)}")
 
     def combine_analysis_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -209,7 +208,7 @@ class ReviewAnalyzer:
 
         return final
 
-    def _chunk_reviews(self, reviews: List[str], chunk_size: int = 50) -> List[List[str]]:
+    def _chunk_reviews(self, reviews: List[str], chunk_size: int = 200) -> List[List[str]]:
         """
         Splits the list of reviews into smaller batches to avoid API token limits.
         """
@@ -242,7 +241,7 @@ class ReviewAnalyzer:
 
             batch_results = []
             for batch in batches:
-                batch_results.append(self.analyze_with_gemini(batch))
+                batch_results.append(self.analyze_with_groq(batch))
 
             # 5. Combine Results
             ai_analysis = self.combine_analysis_results(batch_results)
@@ -277,10 +276,10 @@ class ReviewAnalyzer:
 
     def answer_question(self, reviews: List[str], question: str) -> str:
         """
-        Uses Gemini to answer a natural language question about the provided reviews.
+        Uses Groq to answer a natural language question about the provided reviews.
         """
         if not self.client:
-            raise RuntimeError("GEMINI_API_KEY is not configured.")
+            raise RuntimeError("GROQ_API_KEY is not configured.")
 
         # Concatenate reviews into a single block of text
         context = "\n".join(reviews)
@@ -298,8 +297,8 @@ class ReviewAnalyzer:
         """
 
         try:
-            response = self._call_gemini_with_retry(contents=prompt)
-            return response.text
+            response_text = self._call_groq_with_retry(contents=prompt)
+            return response_text
         except Exception as e:
-            print(f"Error calling Gemini API for Q&A: {e}")
+            print(f"Error calling Groq API for Q&A: {e}")
             raise RuntimeError(f"AI analysis failed: {str(e)}")

@@ -75,15 +75,38 @@ async function requestAnalysis(file, csv) {
   body.append("file", file);
   const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.analyze, { method: "POST", body });
   if (!res.ok) throw new Error("Analysis failed (" + res.status + ")");
-  return res.json();
+
+  const result = await res.json();
+  if (!result.success) throw new Error(result.error || "Analysis failed");
+
+  // Map backend response to frontend expected format
+  return {
+    total: result.stats.total_reviews,
+    sentiment: result.sentiment,
+    positive_topics: result.positive_topics.map(t => ({ name: t, percent: 0 })), // backend only returns names
+    complaints: result.negative_topics.map(t => ({ name: t, percent: 0 })),      // backend only returns names
+    insight: result.summary,
+    reviews: [] // Backend doesn't return individual reviews in process_reviews currently
+  };
 }
 async function requestAnswer(question) {
   if (CONFIG.USE_MOCK) { await sleep(500); return { answer: MOCK_ANSWER }; }
+
+  // Get reviews from the current state to provide context to the backend
+  const reviews = state.csv ? state.csv.rows.map(r => {
+    const reviewCol = state.csv.headers.find(h => /review|text|comment|feedback|body/i.test(h));
+    return r[reviewCol] || "";
+  }) : [];
+
   const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.ask, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }),
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, reviews }),
   });
   if (!res.ok) throw new Error("Request failed (" + res.status + ")");
-  return res.json();
+
+  const result = await res.json();
+  if (!result.success) throw new Error(result.error || "Answer request failed");
+  return { answer: result.answer };
 }
 
 /* ------------------------------------------------------

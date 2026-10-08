@@ -63,6 +63,8 @@ async def analyze_csv(file: UploadFile = File(...)):
                 raise HTTPException(status_code=400, detail=error_msg)
             elif "api_key" in error_msg.lower() or "configured" in error_msg.lower():
                 raise HTTPException(status_code=503, detail=error_msg)
+            elif "quota" in error_msg.lower() or "429" in error_msg.lower():
+                raise HTTPException(status_code=429, detail="AI Quota exceeded. The free tier limit has been reached. Please try again later or upgrade your API plan.")
             elif "ai analysis failed" in error_msg.lower() or "unavailable" in error_msg.lower():
                 raise HTTPException(status_code=503, detail="The AI service is currently overloaded. Please wait a few moments and try again.")
             else:
