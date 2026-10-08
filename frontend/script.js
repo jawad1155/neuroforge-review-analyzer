@@ -25,7 +25,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
    1. CONFIG + MOCK DATA
    ------------------------------------------------------ */
 const CONFIG = {
-  USE_MOCK: true,                       // set false once FastAPI is running
+  USE_MOCK: false,                       // set false once FastAPI is running
   API_BASE: window.NEUROFORGE_API_BASE || "http://localhost:8000",
   ENDPOINTS: { analyze: "/analyze", ask: "/ask" },
   MAX_FILE_MB: 10,
