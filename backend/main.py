@@ -1,22 +1,26 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
+from pathlib import Path
+import os
 import uvicorn
 from backend.analyzer import ReviewAnalyzer
 
 app = FastAPI(title="NeuroForge Review Analyzer API")
 
-# Configure CORS
-# Allow common local development origins
+# Configure CORS to allow frontend requests
 origins = [
     "http://localhost:5500",
     "http://127.0.0.1:5500",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,7 +33,7 @@ class AskRequest(BaseModel):
     question: str
     reviews: List[str]
 
-@app.get("/")
+@app.get("/api")
 async def root():
     return {
         "message": "NeuroForge Review Analyzer API",
@@ -96,6 +100,14 @@ async def ask_ai(request: AskRequest):
         raise HTTPException(status_code=500, detail=str(re))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# Mount static frontend files (must be defined AFTER API routes so API routes take priority)
+frontend_dir = Path("frontend")
+if not frontend_dir.exists():
+    frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
 
 if __name__ == "__main__":
     # Use "backend.main:app" to ensure uvicorn can find the app when run from root

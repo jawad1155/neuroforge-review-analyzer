@@ -27,8 +27,8 @@
      1. CONFIG + MOCK DATA
      ------------------------------------------------------ */
   const CONFIG = {
-    USE_MOCK: false,                       // false = real FastAPI backend (http://localhost:8000)
-    API_BASE: window.NEUROFORGE_API_BASE || "http://localhost:8000",
+    USE_MOCK: false,                       // false = real FastAPI backend
+    API_BASE: window.NEUROFORGE_API_BASE || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? (window.location.port === "8000" ? "" : "http://localhost:8000") : ""),
     ENDPOINTS: { analyze: "/analyze", ask: "/ask" },
     MAX_FILE_MB: 10,
   };
