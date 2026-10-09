@@ -312,7 +312,11 @@
 
       const sentSection = $("#sentiment");
       if (sentSection) {
-        sentSection.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+        if (window.lenis) {
+          window.lenis.scrollTo(sentSection, { offset: -70, duration: 1.2 });
+        } else {
+          sentSection.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+        }
       }
     } catch (e) {
       console.error("Analysis error:", e);
@@ -599,8 +603,12 @@
   function initTilt() {
     if (reduced || !matchMedia("(hover:hover) and (pointer:fine)").matches) return;
     $$(".tilt").forEach((el) => {
+      let r = null;
+      el.addEventListener("pointerenter", () => {
+        r = el.getBoundingClientRect();
+      });
       el.addEventListener("pointermove", (e) => {
-        const r = el.getBoundingClientRect();
+        if (!r) r = el.getBoundingClientRect();
         const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
         const k = clamp(560 / r.width, 0.22, 1);
         el.style.setProperty("--ry", ((px - 0.5) * 7 * k).toFixed(2) + "deg");
@@ -609,6 +617,7 @@
         el.style.setProperty("--my", (py * 100).toFixed(1) + "%");
       });
       el.addEventListener("pointerleave", () => {
+        r = null;
         el.style.setProperty("--rx", "0deg");
         el.style.setProperty("--ry", "0deg");
       });
@@ -1160,28 +1169,39 @@
       bg.add(new THREE.Points(bgGeo, bgMat));
 
       let W = 1, H = 1, wpp = 0.01, s = 0.7, lastShadowS = 0;
+      let stageLeft = 0, stageTop = 0, stageWidth = 0, stageHeight = 0;
+
       function layout() {
         W = innerWidth; H = innerHeight;
         renderer.setSize(W, H, false);
         camera.aspect = W / H; camera.updateProjectionMatrix();
         wpp = (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z) / H;
+
+        const box = stage.getBoundingClientRect();
+        stageLeft = box.left;
+        stageTop = box.top + window.scrollY;
+        stageWidth = box.width;
+        stageHeight = box.height;
       }
 
       let fadeScroll = 1;
       function place() {
-        const r = stage.getBoundingClientRect();
-        hero.position.set((r.left + r.width / 2 - W / 2) * wpp, -(r.top + r.height / 2 - H / 2) * wpp, 0);
-        s = (r.height * wpp) / 10;
+        const sy = window.scrollY;
+        const curTop = stageTop - sy;
+        const curBottom = curTop + stageHeight;
+
+        hero.position.set((stageLeft + stageWidth / 2 - W / 2) * wpp, -(curTop + stageHeight / 2 - H / 2) * wpp, 0);
+        s = (stageHeight * wpp) / 10;
         hero.scale.setScalar(s);
-        net.scale.x = clamp(r.width / r.height / 1.6, 0.6, 1.4);
-        fadeScroll = clamp((r.bottom - 40) / (r.height * 0.5), 0, 1);
-        hero.visible = fadeScroll > 0.002 && r.top < H + 60;
+        net.scale.x = clamp(stageWidth / stageHeight / 1.6, 0.6, 1.4);
+        fadeScroll = clamp((curBottom - 40) / (stageHeight * 0.5), 0, 1);
+        hero.visible = fadeScroll > 0.002 && curTop < H + 60;
         pointMats.forEach(([m, b]) => (m.size = b * s));
         if (shadows && Math.abs(s - lastShadowS) > 0.01) {
           const cam = key.shadow.camera; cam.left = -7 * s; cam.right = 7 * s; cam.top = 7 * s; cam.bottom = -7 * s; cam.near = 1 * s; cam.far = 26 * s;
           cam.updateProjectionMatrix(); lastShadowS = s;
         }
-        bg.position.y = scrollY * wpp * 0.22;
+        bg.position.y = sy * wpp * 0.22;
       }
 
       let hoverTarget = 0, hoverT = 0, tapTimer = 0;
@@ -1199,6 +1219,11 @@
       function step(dt) {
         time += dt; introT += dt;
         place();
+
+        // If hero is offscreen, skip heavy 3D calculations and draw calls
+        if (!hero.visible && fadeScroll <= 0.002) {
+          return;
+        }
 
         const pI = ease(clamp(introT / 1.1, 0, 1));
         const lI = ease(clamp((introT - 0.35) / 1.25, 0, 1));
@@ -1322,6 +1347,35 @@
   }
 
   function boot() {
+    // Ultra-smooth momentum scroll via Lenis
+    if (typeof Lenis !== "undefined" && !reduced) {
+      const lenis = new Lenis({
+        autoRaf: true,
+        smoothWheel: true,
+        wheelMultiplier: 0.95,
+        touchMultiplier: 1.2,
+        lerp: 0.08,
+      });
+      window.lenis = lenis;
+
+      $$('a[href^="#"]').forEach((a) => {
+        a.addEventListener("click", (e) => {
+          const href = a.getAttribute("href");
+          if (!href) return;
+          if (href === "#top" || href === "#") {
+            e.preventDefault();
+            lenis.scrollTo(0, { duration: 1.2 });
+          } else {
+            const target = $(href);
+            if (target) {
+              e.preventDefault();
+              lenis.scrollTo(target, { offset: -70, duration: 1.2 });
+            }
+          }
+        });
+      });
+    }
+
     bindEvents();
     initReveal();
     initTilt();

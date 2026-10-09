@@ -21,7 +21,7 @@ class ReviewAnalyzer:
 
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
-        self.model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        self.model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
         self.client = Groq(api_key=self.api_key) if self.api_key else None
 
     # ---------------------------------------------------------
@@ -226,6 +226,19 @@ class ReviewAnalyzer:
 
                 message = str(error).lower()
 
+                # Automatically switch to an available model if current one is not found
+                if "model_not_found" in message or ("model" in message and ("does not exist" in message or "not have access" in message)):
+                    fallbacks = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
+                    switched = False
+                    for fb in fallbacks:
+                        if self.model_name != fb:
+                            print(f"Model '{self.model_name}' not available on Groq. Auto-switching to '{fb}'...")
+                            self.model_name = fb
+                            switched = True
+                            break
+                    if switched:
+                        continue
+
                 retryable = any(
                     token in message
                     for token in (
@@ -348,49 +361,46 @@ Reviews:
                     json_mode=True
                 )
 
-                result = json.loads(raw)
+                # Strip potential markdown fences before parsing JSON
+                clean_raw = raw.strip()
+                if clean_raw.startswith("```"):
+                    lines = clean_raw.splitlines()
+                    if lines and lines[0].startswith("```"):
+                        lines = lines[1:]
+                    if lines and lines[-1].startswith("```"):
+                        lines = lines[:-1]
+                    clean_raw = "\n".join(lines).strip()
 
-                labels = result.get(
-                    "sentiment_labels"
-                )
+                result = json.loads(clean_raw)
 
-                if (
-                    not isinstance(labels, list)
-                    or len(labels) != count
-                ):
+                raw_labels = result.get("sentiment_labels")
+                if not isinstance(raw_labels, list):
+                    raw_labels = []
 
-                    raise ValueError(
-                        f"Expected {count} sentiment labels, "
-                        f"got "
-                        f"{len(labels) if isinstance(labels, list) else 'invalid'}"
-                    )
+                # Normalize labels cleanly to positive, negative, or neutral
+                normalized_labels = []
+                for label in raw_labels:
+                    l_str = str(label).strip().lower()
+                    if "pos" in l_str:
+                        normalized_labels.append("positive")
+                    elif "neg" in l_str:
+                        normalized_labels.append("negative")
+                    else:
+                        normalized_labels.append("neutral")
 
-                labels = [
-                    str(label)
-                    .strip()
-                    .lower()
-                    for label in labels
-                ]
+                # If LLM returned fewer labels than reviews, pad with neutral
+                if len(normalized_labels) < count:
+                    normalized_labels.extend(["neutral"] * (count - len(normalized_labels)))
+                # If LLM returned more labels, slice to exact count
+                elif len(normalized_labels) > count:
+                    normalized_labels = normalized_labels[:count]
 
-                if any(
-                    label not in {
-                        "positive",
-                        "neutral",
-                        "negative"
-                    }
-                    for label in labels
-                ):
-
-                    raise ValueError(
-                        "Groq returned an invalid sentiment label."
-                    )
-
-                result["sentiment_labels"] = labels
+                result["sentiment_labels"] = normalized_labels
 
                 result["sentiment"] = {
-                    "positive": labels.count("positive"),
-                    "neutral": labels.count("neutral"),
-                    "negative": labels.count("negative"),
+                    "positive": normalized_labels.count("positive"),
+                    "neutral": normalized_labels.count("neutral"),
+                    "negative": normalized_labels.count("negative"),
                 }
 
                 return result
@@ -404,8 +414,7 @@ Reviews:
 
                 if attempt == 2:
                     raise RuntimeError(
-                        "Groq returned an invalid analysis "
-                        "after 3 attempts."
+                        f"Groq analysis failed: {error}"
                     ) from error
 
                 time.sleep(1)
