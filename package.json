@@ -1,0 +1,22 @@
+{
+  "name": "neuroforge-review-analyzer",
+  "version": "1.0.0",
+  "description": "AI-powered customer review analyzer that uses sentiment analysis and AI to identify customer opinions, common complaints, positive feedback, and actionable product insights from reviews. Built for the AMD Developer Hackathon: ACT III.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npx serve frontend",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jawad1155/neuroforge-review-analyzer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jawad1155/neuroforge-review-analyzer/issues"
+  },
+  "homepage": "https://github.com/jawad1155/neuroforge-review-analyzer#readme"
+}
