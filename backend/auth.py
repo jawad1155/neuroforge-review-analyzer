@@ -1,8 +1,8 @@
 import os
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -13,14 +13,23 @@ SECRET_KEY = os.getenv("SECRET_KEY", "neuroforge-super-secret-dev-key-change-me-
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+def verify_password(plain_password: str, hashed_password: str):
+    # bcrypt expects bytes
+    password_bytes = plain_password.encode('utf-8')
+    hashed_bytes = hashed_password.encode('utf-8')
+    try:
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception:
+        return False
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def get_password_hash(password: str):
+    # Generate salt and hash password
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -49,21 +58,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 def get_api_key_user(api_key: str, db: Session):
     from backend.database import APIKey
-    # In production, we store hashed keys. We must verify the raw key against the hash.
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-    # Since we store the hash, we need to find the record and then verify.
-    # However, since bcrypt hashes have different salts, we cannot query by hash.
-    # In a real high-scale system, we'd use a prefix (e.g., nf_...) to find the record
-    # or a fast lookup table. For this implementation, we iterate active keys for the user
-    # or we can store a non-sensitive "key_id" as part of the key.
-
-    # Optimized Approach: Iterate active keys.
-    # (Note: For very large numbers of keys, this should be replaced with a key-id lookup).
     all_active_keys = db.query(APIKey).filter(APIKey.is_active == True).all()
     for key_record in all_active_keys:
-        if pwd_context.verify(api_key, key_record.key_hash):
-            return db.query(User).filter(User.id == key_record.user_id).first()
+        try:
+            if verify_password(api_key, key_record.key_hash):
+                return db.query(User).filter(User.id == key_record.user_id).first()
+        except Exception:
+            continue
 
     return None

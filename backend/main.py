@@ -276,11 +276,12 @@ async def dispatch_webhook(user_id: int, event_type: str, payload: Dict[str, Any
     try:
         subscriptions = db.query(WebhookSubscription).filter(
             WebhookSubscription.user_id == user_id,
-            WebhookSubscription.is_active == True,
-            WebhookSubscription.events.contains(event_type) # Simplified for JSON list
+            WebhookSubscription.is_active == True
         ).all()
 
         for sub in subscriptions:
+            if not isinstance(sub.events, list) or event_type not in sub.events:
+                continue
             # 1. SSRF Protection: Validate target URL
             from backend.scraper import ReviewScraper
             scr = ReviewScraper()
