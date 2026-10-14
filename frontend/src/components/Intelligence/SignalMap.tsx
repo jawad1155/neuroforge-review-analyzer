@@ -29,7 +29,7 @@ export const SignalMap: React.FC<SignalMapProps> = ({ positiveTopics, negativeTo
         </div>
         <div className="font-mono text-[11px] text-slate-500 flex items-center gap-2">
           <Radio size={12} className="text-cyan-400 animate-pulse" />
-          <span>REAL-TIME SEMANTIC EMBEDDINGS</span>
+          <span>AI-EXTRACTED TOPIC SIGNALS</span>
         </div>
       </div>
 

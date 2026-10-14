@@ -4,7 +4,8 @@
   "description": "AI-powered customer review analyzer that uses sentiment analysis and AI to identify customer opinions, common complaints, positive feedback, and actionable product insights from reviews. Built for the AMD Developer Hackathon: ACT III.",
   "main": "index.js",
   "scripts": {
-    "dev": "npx serve frontend",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

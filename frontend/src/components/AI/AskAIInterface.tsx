@@ -87,7 +87,7 @@ export const AskAIInterface: React.FC<AskAIInterfaceProps> = ({ reviews }) => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-white/[0.06] pb-4">
         <div>
           <span className="font-mono text-[10px] uppercase tracking-widest text-cyan-400 font-semibold block">
-            INTERACTIVE REASONING // ZERO-SHOT SYNTHESIS
+            INTERACTIVE REASONING // REVIEW-GROUNDED ANSWERS
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-mono">
             Ask AI <span className="text-cyan-400">Intelligence</span>

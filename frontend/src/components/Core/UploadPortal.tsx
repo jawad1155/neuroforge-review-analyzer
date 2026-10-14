@@ -26,9 +26,9 @@ export const UploadPortal: React.FC<UploadPortalProps> = ({
 
   const steps = [
     'Transmitting CSV payload to intelligence backend...',
-    'Synthesizing customer sentiment vectors via Groq / Gemini...',
-    'Extracting semantic friction nodes and praise drivers...',
-    'Finalizing executive summary & intelligence map...',
+    'Sending review batches to the Groq analysis service...',
+    'Extracting sentiment, topics, praise and complaints...',
+    'Finalizing the executive summary and recommendations...',
   ];
 
   const handleFile = (selectedFile: File) => {
@@ -105,7 +105,7 @@ export const UploadPortal: React.FC<UploadPortalProps> = ({
   return (
     <div id="upload-portal" className="w-full max-w-3xl mx-auto scroll-mt-24">
       <motion.div
-        onDragOver={(e) => {
+        onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
           e.preventDefault();
           setIsDragOver(true);
         }}
@@ -157,7 +157,7 @@ export const UploadPortal: React.FC<UploadPortalProps> = ({
           {/* Heading and description */}
           <div className="space-y-2 mb-6 max-w-lg">
             <div className="font-mono text-[10px] tracking-widest text-violet-400 uppercase font-semibold">
-              INGESTION PIPELINE // MULTI-MODAL VECTORIZER
+              INGESTION PIPELINE // CSV REVIEW ANALYSIS
             </div>
             <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
               {status === 'idle' && (file ? 'Dataset Staged for Synthesis' : 'Deploy Customer Review Dataset')}
@@ -167,7 +167,7 @@ export const UploadPortal: React.FC<UploadPortalProps> = ({
             </h3>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
               {status === 'idle' &&
-                'Drag and drop any review CSV file or select from disk to generate real-time sentiment distribution, topic clusters, and strategic recommendations.'}
+                'Drag and drop a review CSV or select one from disk to generate sentiment distribution, topic clusters, and strategic recommendations.'}
               {status === 'analyzing' && steps[analysisStep]}
               {status === 'success' &&
                 'Your customer intelligence dashboard has been populated with real verified feedback analysis.'}

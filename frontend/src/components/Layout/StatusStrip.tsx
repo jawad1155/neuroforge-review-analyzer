@@ -42,7 +42,7 @@ export const StatusStrip: React.FC<StatusStripProps> = ({
 
         <div className="hidden md:flex items-center gap-1.5 text-slate-500">
           <Cpu size={12} className="text-violet-400" />
-          <span>INFERENCE: GROQ / GEMINI</span>
+          <span>INFERENCE: GROQ</span>
         </div>
       </div>
 

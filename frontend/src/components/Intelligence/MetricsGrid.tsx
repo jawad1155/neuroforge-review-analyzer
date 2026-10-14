@@ -64,7 +64,7 @@ export const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, sentiment }) =>
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Processed through NLP vectorization and semantic deduplication pipelines.
+              Review rows cleaned and analyzed in fixed batches of up to 50 items.
             </p>
 
             <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[10px] font-mono">

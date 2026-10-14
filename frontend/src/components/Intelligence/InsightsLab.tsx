@@ -38,7 +38,7 @@ export const InsightsLab: React.FC<InsightsLabProps> = ({
         </div>
         <div className="font-mono text-[11px] text-slate-500 flex items-center gap-2">
           <Sparkles size={12} className="text-violet-400" />
-          <span>MULTI-MODAL ACTION MATRIX</span>
+          <span>ACTION MATRIX // REVIEW EVIDENCE</span>
         </div>
       </div>
 
