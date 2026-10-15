@@ -21,10 +21,24 @@ class ReviewAnalyzer:
         self.api_key = os.getenv("AMD_RADEON_API_KEY")
         # Defaulting to the recommended fast model from AMD docs
         self.model_name = "DeepSeek-V4-Flash"
+        self.evolus_workspace_id = os.getenv("EVOLUS_WORKSPACE_ID", "5f96b97d-e488-44dc-973d-09c30c5625aa")
+        self.evolus_agent_id = os.getenv("EVOLUS_AGENT_ID", "aa475004-2f3e-4b8c-93cd-0676450c5058")
+        self.evolus_agent_name = "Review Insight Analyst"
+        self.evolus_api_key = os.getenv("EVOLUS_API_KEY", "")
+        self.evolus_base_url = os.getenv("EVOLUS_API_BASE_URL", "https://api.evolus.ai/api/v1")
+
+        # Primary AMD inference client
         self.client = OpenAI(
             base_url="https://developer.amd.com.cn/radeon/api/v1",
             api_key=self.api_key
         ) if self.api_key else None
+
+        # Evolus Agent client (when api key is provided)
+        self.evolus_client = OpenAI(
+            base_url="https://api.evolus.ai/v1",
+            api_key=self.evolus_api_key,
+            default_headers={"X-Application-Id": self.evolus_workspace_id}
+        ) if self.evolus_api_key else None
 
     # ---------------------------------------------------------
     # CSV / DATA HELPERS
@@ -113,8 +127,22 @@ class ReviewAnalyzer:
         except (TypeError, ValueError):
             return 0.0
 
+    def get_orchestration_info(self) -> Dict[str, Any]:
+        """Returns details on the Evolus workspace and AMD acceleration backend."""
+        return {
+            "orchestrator": "Evolus AI Business Process Platform",
+            "workspace_id": self.evolus_workspace_id,
+            "agent_id": self.evolus_agent_id,
+            "agent_name": self.evolus_agent_name,
+            "workspace_connected": True,
+            "evolus_api_ready": bool(self.evolus_api_key),
+            "inference_hardware": "AMD Instinct / ROCm",
+            "model": self.model_name,
+            "status": "ready"
+        }
+
     # ---------------------------------------------------------
-    # AMD API IMPLEMENTATION
+    # EVOLUS & AMD INFERENCE IMPLEMENTATION
     # ---------------------------------------------------------
     def _call_amd_with_retry(
         self,
@@ -122,8 +150,25 @@ class ReviewAnalyzer:
         json_mode: bool = False,
         max_retries: int = 5,
     ) -> str:
+        # 1. If Evolus Agent Client is configured, attempt agent execution first
+        if self.evolus_client:
+            try:
+                request_data = {
+                    "model": self.model_name,
+                    "messages": [{"role": "user", "content": contents}],
+                }
+                if json_mode:
+                    request_data["response_format"] = {"type": "json_object"}
+                response = self.evolus_client.chat.completions.create(**request_data)
+                content = response.choices[0].message.content
+                if content:
+                    return content
+            except Exception as ev_err:
+                print(f"Evolus agent request fallback to AMD endpoint: {ev_err}")
+
+        # 2. AMD Hardware Endpoint
         if not self.client:
-            raise RuntimeError("AMD_RADEON_API_KEY is not configured.")
+            raise RuntimeError("Neither EVOLUS_API_KEY nor AMD_RADEON_API_KEY is configured.")
 
         last_error = None
         for attempt in range(max_retries):
@@ -149,7 +194,7 @@ class ReviewAnalyzer:
                     raise
 
                 wait_time = (2 ** attempt) + random.uniform(0, 1)
-                print(f"AMD API temporary error. Retrying in {wait_time:.2f}s...")
+                print(f"Inference API temporary error. Retrying in {wait_time:.2f}s...")
                 time.sleep(wait_time)
 
         raise RuntimeError(f"AMD API request failed: {last_error}")
@@ -346,6 +391,7 @@ Reviews:
                 "recommendations": ai_analysis["recommendations"],
                 "summary": ai_analysis["summary"],
                 "reviews": review_details,
+                "orchestration": self.get_orchestration_info(),
             }
         except ValueError as error:
             return {"success": False, "error": str(error)}

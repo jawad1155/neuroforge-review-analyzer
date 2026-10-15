@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  neuroforge:
+    build: .
+    container_name: neuroforge-app
+    ports:
+      - "8000:8000"
+    environment:
+      - AMD_RADEON_API_KEY=${AMD_RADEON_API_KEY:-rc-cd442321951649ca3db16dd10e12b87d1f2a7b5924d97b40}
+      - EVOLUS_WORKSPACE_ID=${EVOLUS_WORKSPACE_ID:-5f96b97d-e488-44dc-973d-09c30c5625aa}
+      - EVOLUS_API_KEY=${EVOLUS_API_KEY:-}
+      - DATABASE_URL=sqlite:///./neuroforge.db
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

@@ -13,7 +13,20 @@ load_dotenv(dotenv_path=ENV_PATH)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/neuroforge")
 
-engine = create_engine(DATABASE_URL)
+# Attempt connection to Postgres, fallback smoothly to SQLite if unreachable
+try:
+    if DATABASE_URL.startswith("postgresql"):
+        temp_engine = create_engine(DATABASE_URL, connect_args={"connect_timeout": 3})
+        with temp_engine.connect() as conn:
+            pass
+        engine = temp_engine
+    else:
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+except Exception as e:
+    print(f"Primary database connection not ready ({e}). Falling back to local SQLite database.")
+    DATABASE_URL = "sqlite:///./neuroforge.db"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
