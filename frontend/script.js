@@ -1,1418 +1,1492 @@
-/* ==========================================================
-   NeuroForge — Application Script (Unified & Fixed)
-   1. Config + Mock Data
-   2. Safe DOM Helpers & CSV Parser
-   3. API Layer (POST /analyze · POST /ask)
-   4. Dashboard Functions (upload, analyze, displayReviews, bars)
-   5. Mini 3D Visuals (Canvas: total, pos, neg, neu)
-   6. 3D Sentiment Columns (Canvas Cabinet Projection)
-   7. Hero 3D Scene (Three.js Animated Logo & Neural Net)
-   8. Boot & Ready
-   ========================================================== */
+/* ==========================================================================
+   NEUROFORGE — PREMIUM AI REVIEW INTELLIGENCE PLATFORM
+   Application Engine, 3D Artwork Motion, Auth Integration & Functional API
+   Color Palette: Obsidian Black · Deep Graphite · Emerald Green · Champagne Gold
+   ========================================================================== */
+
 (() => {
   "use strict";
 
-  const root = document.documentElement;
-  root.classList.add("js");
+  // Check reduced motion preference
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const $  = (s, c = document) => c.querySelector(s);
-  const $$ = (s, c = document) => [...c.querySelectorAll(s)];
-  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const ease = (t) => 1 - Math.pow(1 - t, 3);
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  /* ------------------------------------------------------
-     1. CONFIG + MOCK DATA
-     ------------------------------------------------------ */
+  // Configuration
   const CONFIG = {
-    USE_MOCK: false,                       // false = real FastAPI backend
-    API_BASE: window.NEUROFORGE_API_BASE || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? (window.location.port === "8000" ? "" : "http://localhost:8000") : ""),
-    ENDPOINTS: { analyze: "/analyze", ask: "/ask" },
+    API_BASE: (() => {
+      if (window.NEUROFORGE_API_BASE) return window.NEUROFORGE_API_BASE;
+      const host = window.location.hostname;
+      const port = window.location.port;
+      if (host === "localhost" || host === "127.0.0.1") {
+        return port === "8000" ? "" : "http://127.0.0.1:8000";
+      }
+      return "";
+    })(),
+    ENDPOINTS: {
+      health: "/health",
+      evolusInfo: "/evolus/info",
+      analyze: "/analyze",
+      ask: "/ask",
+      importUrl: "/import-url",
+      login: "/auth/token",
+      signup: "/auth/signup",
+    },
     MAX_FILE_MB: 10,
+    PAGE_SIZE: 10,
   };
 
-  const MOCK_ANALYSIS = {
-    total: 1248,
-    sentiment: { positive: 82, negative: 11, neutral: 7 },
-    positive_topics: [
-      { name: "Sound Quality", percent: 34 },
-      { name: "Comfort", percent: 27 },
-      { name: "Design", percent: 19 },
-    ],
-    complaints: [
-      { name: "Battery Life", percent: 31 },
-      { name: "Bluetooth", percent: 18 },
-      { name: "Price", percent: 14 },
-    ],
-    insight: "Customers generally love the product's sound quality, comfort and design. Battery performance is the most common complaint. Improving battery life and Bluetooth stability could improve customer satisfaction.",
-    reviews: [
-      { name: "Aisha", text: "The sound quality is amazing and very comfortable for long sessions.", rating: 5, sentiment: "Positive" },
-      { name: "Hamza", text: "Battery dies much faster than expected. Bluetooth also disconnects sometimes.", rating: 2, sentiment: "Negative" },
-      { name: "Sara",  text: "Beautiful design, excellent audio and comfortable ear cushions.", rating: 5, sentiment: "Positive" },
-      { name: "Omar",  text: "Decent for the price, but the carrying case feels a bit cheap.", rating: 3, sentiment: "Neutral" },
-      { name: "Lina",  text: "Great noise cancelling. The fit gets a little tight after an hour.", rating: 4, sentiment: "Positive" },
-    ],
-  };
-
-  const MOCK_ANSWER = "Based on the current customer feedback, battery reliability appears to be the first area to improve, followed by Bluetooth stability.";
-
-  /* ------------------------------------------------------
-     2. DOM ELEMENTS & STATE
-     ------------------------------------------------------ */
-  const els = {
-    csv: $("#csv-input"), choose: $("#choose-btn"), analyze: $("#analyze-btn"), demo: $("#demo-btn"),
-    drop: $("#drop-zone"), fileStatus: $("#file-status"), upMsg: $("#upload-msg"),
-    sTotal: $("#stat-total"), sPos: $("#stat-pos"), sNeg: $("#stat-neg"), sNeu: $("#stat-neu"),
-    posTopics: $("#pos-topics"), negTopics: $("#neg-topics"),
-    insightText: $("#insight-text"), insSrc: $("#ins-src"),
-    askInput: $("#ask-input"), askBtn: $("#ask-btn"),
-    proc: $("#ask-proc"), procSteps: $$("#proc-steps li"), procBar: $("#proc-bar"),
-    out: $("#ask-out"), ansQ: $("#answer-q"), ansText: $("#answer-text"),
-    reviews: $("#review-list"),
-    lgPos: $("#lg-pos"), lgNeu: $("#lg-neu"), lgNeg: $("#lg-neg"), spectrum: $("#spectrum"),
-    demoTag: $("#demo-tag"), ctaAnalyze: $("#cta-analyze"),
-  };
-
+  // Application State
   const state = {
     file: null,
     csv: null,
-    data: null,
+    analysisResult: null,
     reviews: [],
-    statsPlayed: false,
+    filteredReviews: [],
+    activeFilter: "all",
+    searchQuery: "",
+    sortOrder: "default",
+    currentPage: 1,
+    qaHistory: [],
+    isAnalyzing: false,
+    isAsking: false,
+    currentUser: null,
   };
 
-  if (els.demoTag && !CONFIG.USE_MOCK) {
-    els.demoTag.hidden = true;
+  // Fallback demo data (used if backend is temporarily unreachable)
+  const FALLBACK_DEMO_DATA = {
+    success: true,
+    stats: {
+      total_reviews: 20,
+      average_length: 78.9,
+      rating_distribution: { "5": "25.0%", "4": "25.0%", "2": "20.0%", "1": "15.0%", "3": "15.0%" },
+    },
+    sentiment: { positive: 50.0, neutral: 15.0, negative: 35.0 },
+    positive_topics: [
+      { name: "Overall Satisfaction", percent: 40.0 },
+      { name: "Performance & Design", percent: 20.0 },
+      { name: "Value for Money", percent: 10.0 },
+    ],
+    negative_topics: [
+      { name: "Quality & Durability", percent: 30.0 },
+      { name: "Software Bugs", percent: 20.0 },
+      { name: "Customer Support", percent: 10.0 },
+    ],
+    common_praise: [
+      "Excellent value for money",
+      "Fast shipping and secure packaging",
+      "Seamless integration with other tools",
+      "Impressive battery life",
+      "Sleek and modern aesthetics",
+    ],
+    common_complaints: [
+      "Poor build quality and durability",
+      "Difficult manual setup",
+      "Software bugs and crashes on export",
+      "Missing advertised features",
+      "A bit overpriced for average performance",
+    ],
+    recommendations: [
+      "Improve build quality and durability of physical chassis",
+      "Enhance customer support responsiveness and training",
+      "Fix software bugs and app crashes during data export",
+      "Simplify initial setup and onboarding workflow",
+      "Consider adding a native dark mode interface option",
+    ],
+    summary:
+      "Customer sentiment is divided with 50% positive and 35% negative feedback. Positive reviews strongly praise performance, design, and integration, while negative reviews highlight software stability, build quality, and setup friction. Immediate priority should be given to stability fixes and customer onboarding.",
+    reviews: [
+      { name: "Customer 1", text: "Absolutely love this product! It has completely changed my workflow for the better.", rating: 5, sentiment: "Positive" },
+      { name: "Customer 2", text: "The build quality is poor. It felt like it was going to break the first time I used it.", rating: 2, sentiment: "Negative" },
+      { name: "Customer 3", text: "Great value for the money. A few minor bugs here and there, but overall very satisfied.", rating: 4, sentiment: "Positive" },
+      { name: "Customer 4", text: "Terrible experience. The customer support was rude and the item arrived broken.", rating: 1, sentiment: "Negative" },
+      { name: "Customer 5", text: "It's okay. Does what it says on the tin, but nothing spectacular. A bit overpriced.", rating: 3, sentiment: "Neutral" },
+      { name: "Customer 6", text: "Incredible performance and sleek design. Highly recommend to anyone in the industry!", rating: 5, sentiment: "Positive" },
+      { name: "Customer 7", text: "Too complicated to set up. I spent three hours reading the manual and still can't get it to work.", rating: 2, sentiment: "Negative" },
+      { name: "Customer 8", text: "Solid product. The battery life is impressive, though the charging cable is a bit short.", rating: 4, sentiment: "Positive" },
+      { name: "Customer 9", text: "Best purchase I've made this year. The integration with other tools is seamless.", rating: 5, sentiment: "Positive" },
+      { name: "Customer 10", text: "Complete waste of money. Stopped working after two days and I can't get a refund.", rating: 1, sentiment: "Negative" },
+      { name: "Customer 11", text: "Average. It works, but the user interface feels dated and clunky.", rating: 3, sentiment: "Neutral" },
+      { name: "Customer 12", text: "Very happy with the results. Shipping was fast and packaging was secure.", rating: 4, sentiment: "Positive" },
+      { name: "Customer 13", text: "Disappointed. The features advertised on the website are not all present in the actual product.", rating: 2, sentiment: "Negative" },
+      { name: "Customer 14", text: "Fantastic! The attention to detail is apparent. I'm impressed by the stability.", rating: 5, sentiment: "Positive" },
+      { name: "Customer 15", text: "Decent, but there are better alternatives available for a similar price point.", rating: 3, sentiment: "Neutral" },
+      { name: "Customer 16", text: "Good quality. I wish it had a dark mode for the interface, but otherwise, it's great.", rating: 4, sentiment: "Positive" },
+      { name: "Customer 17", text: "Horrible. The app crashes every time I try to export my data.", rating: 1, sentiment: "Negative" },
+      { name: "Customer 18", text: "Exceeded my expectations in every way. A true game-changer.", rating: 5, sentiment: "Positive" },
+      { name: "Customer 19", text: "Not worth the hype. It's slow and the software is buggy.", rating: 2, sentiment: "Negative" },
+      { name: "Customer 20", text: "Pretty good. It took some time to get used to, but now I can't live without it.", rating: 4, sentiment: "Positive" },
+    ],
+  };
+
+  // Utility Selectors
+  const $ = (s, c = document) => c.querySelector(s);
+  const $$ = (s, c = document) => [...c.querySelectorAll(s)];
+
+  // DOM Elements Cache
+  const dom = {
+    // Nav & Status
+    statusPill: $("#backend-status-pill"),
+    statusDot: $("#backend-status-dot"),
+    statusText: $("#backend-status-text"),
+    mobileToggle: $("#mobile-toggle-btn"),
+    mobileMenu: $("#mobile-menu"),
+    navLoginBtn: $("#nav-login-btn"),
+    navUserLabel: $("#nav-user-label"),
+    telemetryStatus: $("#telemetry-dataset-status"),
+    artworkCard: $("#artwork-card"),
+
+    // Upload & Ingestion
+    fileInput: $("#csv-file-input"),
+    dropZone: $("#drop-zone"),
+    browseBtn: $("#browse-btn"),
+    demoBtn: $("#demo-load-btn"),
+    heroDemoBtn: $("#hero-cta-demo"),
+    urlToggleBtn: $("#url-toggle-btn"),
+    urlPanel: $("#url-import-panel"),
+    urlInput: $("#url-import-input"),
+    urlSubmitBtn: $("#url-submit-btn"),
+    fileInspector: $("#file-inspector"),
+    fileName: $("#inspected-file-name"),
+    fileStats: $("#inspected-file-stats"),
+    clearFileBtn: $("#clear-file-btn"),
+    analyzeBtn: $("#analyze-action-btn"),
+
+    // Progress
+    progressTracker: $("#progress-tracker"),
+    progressStage: $("#progress-stage-text"),
+    progressPct: $("#progress-pct-text"),
+    progressBarFill: $("#progress-bar-fill"),
+    step1: $("#step-1"),
+    step2: $("#step-2"),
+    step3: $("#step-3"),
+    step4: $("#step-4"),
+
+    // Overview Stats
+    valTotal: $("#val-total-reviews"),
+    valTotalSub: $("#val-total-sub"),
+    valPos: $("#val-pos-sentiment"),
+    valPosCount: $("#val-pos-count"),
+    valNeg: $("#val-neg-sentiment"),
+    valNegCount: $("#val-neg-count"),
+    valNeu: $("#val-neu-sentiment"),
+    valNeuCount: $("#val-neu-count"),
+
+    // Visualizations
+    chartSlicePos: $("#chart-slice-pos"),
+    chartSliceNeu: $("#chart-slice-neu"),
+    chartSliceNeg: $("#chart-slice-neg"),
+    centerScoreVal: $("#center-score-val"),
+    legendPos: $("#legend-pos-val"),
+    legendNeu: $("#legend-neu-val"),
+    legendNeg: $("#legend-neg-val"),
+    specPos: $("#spec-pos"),
+    specNeu: $("#spec-neu"),
+    specNeg: $("#spec-neg"),
+    specSummary: $("#spectrum-summary-text"),
+
+    // Rating Breakdown
+    valSignalDepth: $("#val-signal-depth"),
+    valAvgRating: $("#val-avg-rating"),
+    ratingBars: [
+      { fill: $("#rating-bar-5"), val: $("#rating-val-5") },
+      { fill: $("#rating-bar-4"), val: $("#rating-val-4") },
+      { fill: $("#rating-bar-3"), val: $("#rating-val-3") },
+      { fill: $("#rating-bar-2"), val: $("#rating-val-2") },
+      { fill: $("#rating-bar-1"), val: $("#rating-val-1") },
+    ],
+
+    // Topics & Recommendations
+    posTopicsList: $("#positive-topics-list"),
+    negTopicsList: $("#negative-topics-list"),
+    praiseChips: $("#praise-chips-container"),
+    complaintsChips: $("#complaints-chips-container"),
+    summaryText: $("#executive-summary-text"),
+    copySummaryBtn: $("#copy-summary-btn"),
+    recsContainer: $("#recommendations-container"),
+
+    // Ask AI
+    askForm: $("#ask-ai-form"),
+    askInput: $("#ask-input"),
+    askSubmitBtn: $("#ask-submit-btn"),
+    qaAnswerContainer: $("#qa-answer-container"),
+    qaQuestionText: $("#qa-question-text"),
+    qaAnswerBody: $("#qa-answer-body"),
+    copyAnswerBtn: $("#copy-answer-btn"),
+    qaHistoryList: $("#qa-history-list"),
+
+    // Review Explorer
+    reviewCountBadge: $("#review-count-badge"),
+    reviewSearchInput: $("#review-search-input"),
+    filterBtns: $$(".filter-btn"),
+    sortSelect: $("#review-sort-select"),
+    reviewsContainer: $("#reviews-container"),
+    paginationInfo: $("#pagination-info-text"),
+    pagePrevBtn: $("#page-prev-btn"),
+    pageNextBtn: $("#page-next-btn"),
+    pageNumbersGroup: $("#page-numbers-group"),
+
+    // Export & Action
+    exportJsonBtn: $("#export-json-btn"),
+    exportMdBtn: $("#export-md-btn"),
+    resetBtn: $("#reset-workspace-btn"),
+    toastContainer: $("#toast-container"),
+
+    // Auth Modal
+    authModal: $("#auth-modal-backdrop"),
+    authClose: $("#auth-modal-close"),
+    tabSignin: $("#tab-signin-btn"),
+    tabSignup: $("#tab-signup-btn"),
+    authForm: $("#auth-form"),
+    authEmail: $("#auth-email"),
+    authPassword: $("#auth-password"),
+    authSubmitBtn: $("#auth-submit-btn"),
+    authSubmitText: $("#auth-submit-text"),
+    authDemoBtn: $("#auth-demo-btn"),
+  };
+
+  // Toast System
+  function showToast(message, type = "info") {
+    if (!dom.toastContainer) return;
+    const toast = document.createElement("div");
+    toast.className = `toast toast--${type}`;
+    toast.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${type === 'error' ? 'var(--sentiment-neg)' : 'var(--emerald-400)'}" stroke-width="2.5">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <span>${escapeHTML(message)}</span>
+    `;
+    dom.toastContainer.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("is-active"));
+    setTimeout(() => {
+      toast.classList.remove("is-active");
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
   }
 
-  function setMsg(text, type = "") {
-    if (!els.upMsg) return;
-    els.upMsg.textContent = text;
-    els.upMsg.className = "upload__msg" + (type ? " is-" + type : "");
+  function escapeHTML(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
-  function setLoading(btn, on, label) {
-    if (!btn) return;
-    btn.classList.toggle("is-loading", on);
-    btn.disabled = on || (btn === els.analyze && !state.file);
-    if (label) btn.textContent = label;
-  }
-
-  /* ------------------------------------------------------
-     3. CSV PARSER & HELPERS
-     ------------------------------------------------------ */
-  function parseCSV(text) {
-    const src = String(text || "").replace(/^\uFEFF/, "");
-    const recs = [];
-    let row = [], cell = "", q = false;
-
-    for (let i = 0; i < src.length; i++) {
-      const ch = src[i];
-      if (q) {
-        if (ch === '"' && src[i + 1] === '"') { cell += '"'; i++; }
-        else if (ch === '"') q = false;
-        else cell += ch;
-        continue;
-      }
-      if (ch === '"') q = true;
-      else if (ch === ",") { row.push(cell); cell = ""; }
-      else if (ch === "\n" || ch === "\r") {
-        if (ch === "\r" && src[i + 1] === "\n") i++;
-        row.push(cell); cell = "";
-        if (row.some((c) => String(c).trim() !== "")) recs.push(row);
-        row = [];
-      } else cell += ch;
-    }
-    row.push(cell);
-    if (row.some((c) => String(c).trim() !== "")) recs.push(row);
-
-    const headers = (recs.shift() || []).map((h) => String(h).trim());
-    const rows = recs.map((r) => Object.fromEntries(headers.map((h, i) => [h, String(r[i] ?? "").trim()])));
-    return { headers, rows };
-  }
-
-  /* Agar backend direct reviews na de, to CSV se sample reviews extract karo */
-  function extractReviewsFromCSV(csv, max = 5) {
-    if (!csv || !csv.rows || !csv.rows.length) return [];
-    const headers = csv.headers || [];
-    const textCol = headers.find(h => /review|text|comment|feedback|body|content/i.test(h)) || headers[0];
-    const nameCol = headers.find(h => /name|customer|user|author|person/i.test(h));
-    const ratingCol = headers.find(h => /rating|score|star/i.test(h));
-    const sentCol = headers.find(h => /sentiment|polarity/i.test(h));
-
-    return csv.rows.slice(0, max).map((r, i) => {
-      const text = r[textCol] || "";
-      const name = (nameCol && r[nameCol]) ? r[nameCol] : `Customer ${i + 1}`;
-      let rating = ratingCol ? parseFloat(r[ratingCol]) : 5;
-      if (isNaN(rating) || rating < 1) rating = 5;
-      const sentiment = sentCol && r[sentCol] ? r[sentCol] : (rating >= 4 ? "Positive" : rating <= 2 ? "Negative" : "Neutral");
-      return { name, text, rating, sentiment };
-    });
-  }
-
-  /* Normalize topics and preserve percentages */
-  function normalizeTopics(topics) {
-    if (!Array.isArray(topics)) return [];
-    const items = topics.map((it) => {
-      if (it && typeof it === "object") {
-        const name = String(it.name || it.topic || it.label || "Unknown");
-        const percent = Number(it.percent ?? it.percentage ?? 0);
-        return { name, percent: Number.isFinite(percent) ? Math.round(percent) : 0 };
-      }
-      if (typeof it === "string") {
-        return { name: it, percent: 0 };
-      }
-      return null;
-    }).filter(Boolean);
-
-    // Agar backend ne sirf names bheje hon (all 0%), to realistic proportional percentages assign karo
-    const allZero = items.every(i => i.percent === 0);
-    if (allZero && items.length > 0) {
-      const presets = [38, 28, 18, 12, 8];
-      items.forEach((it, idx) => {
-        it.percent = presets[idx] || Math.max(5, 30 - idx * 6);
-      });
-    }
-    return items;
-  }
-
-  /* ------------------------------------------------------
-     4. API LAYER
-     ------------------------------------------------------ */
-  async function requestAnalysis(file, csv) {
-    if (CONFIG.USE_MOCK) {
-      await sleep(800);
-      const data = JSON.parse(JSON.stringify(MOCK_ANALYSIS));
-      if (csv && csv.rows.length) data.total = csv.rows.length;
-      return data;
-    }
-    if (!file) throw new Error("No file selected.");
-
-    const body = new FormData();
-    body.append("file", file);
-
-    const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.analyze, { method: "POST", body });
-    if (!res.ok) {
-      let msg = "Analysis failed (" + res.status + ")";
-      try {
-        const err = await res.json();
-        if (err.detail || err.error) msg = err.detail || err.error;
-      } catch (_) {}
-      throw new Error(msg);
-    }
-
-    const result = await res.json();
-    if (result.success === false) throw new Error(result.error || "Analysis failed");
-
-    // Unified mapping for both direct and nested FastAPI responses
-    const total = Number(result.total ?? result.stats?.total_reviews ?? (csv?.rows?.length || 0));
-    const sentiment = result.sentiment || { positive: 0, negative: 0, neutral: 0 };
-    const positive_topics = normalizeTopics(result.positive_topics);
-    const complaints = normalizeTopics(result.negative_topics || result.complaints);
-    const insight = result.insight || result.summary || "Analysis completed successfully.";
-
-    let reviews = [];
-    if (Array.isArray(result.reviews) && result.reviews.length > 0) {
-      reviews = result.reviews;
-    } else if (csv && csv.rows && csv.rows.length > 0) {
-      reviews = extractReviewsFromCSV(csv, 5);
-    }
-
-    return {
-      total,
-      sentiment,
-      positive_topics,
-      complaints,
-      insight,
-      reviews,
-    };
-  }
-
-  async function requestAnswer(question) {
-    if (CONFIG.USE_MOCK) {
-      await sleep(500);
-      return { answer: MOCK_ANSWER };
-    }
-
-    let reviewTexts = [];
-    if (state.reviews && state.reviews.length) {
-      reviewTexts = state.reviews.map(r => typeof r === "string" ? r : (r.text || r.review || r.comment || "")).filter(Boolean);
-    } else if (state.csv && state.csv.rows) {
-      const textCol = state.csv.headers.find(h => /review|text|comment|feedback|body/i.test(h));
-      if (textCol) reviewTexts = state.csv.rows.map(r => r[textCol] || "").filter(Boolean);
-    }
-
-    const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.ask, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, reviews: reviewTexts }),
-    });
-
-    if (!res.ok) {
-      let msg = "Request failed (" + res.status + ")";
-      try {
-        const err = await res.json();
-        if (err.detail || err.error) msg = err.detail || err.error;
-      } catch (_) {}
-      throw new Error(msg);
-    }
-
-    const result = await res.json();
-    if (result.success === false) throw new Error(result.error || "Answer request failed");
-    return { answer: result.answer || result.response || "No response received." };
-  }
-
-  /* ------------------------------------------------------
-     5. DASHBOARD FUNCTIONS
-     ------------------------------------------------------ */
-  async function uploadReviews(file) {
-    if (!file) return null;
-    if (!/\.csv$/i.test(file.name) && file.type !== "text/csv") {
-      setMsg("That file is not a CSV. Choose a .csv file and try again.", "error"); return null;
-    }
-    if (file.size > CONFIG.MAX_FILE_MB * 1048576) {
-      setMsg("This file is larger than " + CONFIG.MAX_FILE_MB + " MB. Upload a smaller CSV.", "error"); return null;
-    }
-    try {
-      const csv = parseCSV(await file.text());
-      if (!csv.rows.length) {
-        setMsg("No review rows found. Check that the file has a header row and data.", "error"); return null;
-      }
-      state.file = file;
-      state.csv = csv;
-      if (els.fileStatus) {
-        els.fileStatus.textContent = "Selected file: " + file.name;
-        els.fileStatus.classList.add("is-selected");
-      }
-      if (els.analyze) els.analyze.disabled = false;
-      setMsg(csv.rows.length.toLocaleString("en-US") + " rows and " + csv.headers.length + " columns detected. Ready to analyze.", "ok");
-      return csv;
-    } catch (e) {
-      console.error(e);
-      setMsg("This file could not be read. Try exporting it as UTF-8 CSV.", "error"); return null;
-    }
-  }
-
-  async function analyzeReviews({ demo = false } = {}) {
-    const btn = demo ? els.demo : els.analyze;
-    const idle = demo ? "Use demo reviews" : "Analyze Reviews";
-    setLoading(btn, true, "Analyzing…");
-    setMsg("Analyzing reviews…");
-
-    try {
-      const data = await requestAnalysis(demo ? null : state.file, demo ? null : state.csv);
-      state.data = data;
-      state.reviews = Array.isArray(data.reviews) ? data.reviews : [];
-
-      updateDashboard(data, { animate: true });
-      displayReviews(state.reviews);
-      setMsg("Analysis complete. Results are updated below.", "ok");
-
-      const sentSection = $("#sentiment");
-      if (sentSection) {
-        if (window.lenis) {
-          window.lenis.scrollTo(sentSection, { offset: -70, duration: 1.2 });
-        } else {
-          sentSection.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
-        }
-      }
-    } catch (e) {
-      console.error("Analysis error:", e);
-      setMsg(e.message || "The analysis service did not respond. Check backend status.", "error");
-    } finally {
-      setLoading(btn, false, idle);
-      if (els.analyze) els.analyze.disabled = !state.file;
-    }
-  }
-
-  async function askAI(question) {
-    const q = (question || "").trim();
-    if (!q) { if (els.askInput) els.askInput.focus(); return; }
-
-    setLoading(els.askBtn, true, "Processing…");
-    if (els.out) els.out.classList.remove("is-open");
-    els.procSteps.forEach((li) => li.classList.remove("is-active", "is-done"));
-    if (els.procBar) els.procBar.style.width = "0%";
-    if (els.proc) els.proc.classList.add("is-open");
-
-    const runSteps = async () => {
-      for (let i = 0; i < els.procSteps.length; i++) {
-        els.procSteps[i].classList.add("is-active");
-        if (els.procBar) els.procBar.style.width = ((i + 1) / els.procSteps.length) * 100 + "%";
-        await sleep(reduced ? 100 : 550);
-        els.procSteps[i].classList.replace("is-active", "is-done");
-      }
-    };
-
-    const [, res] = await Promise.allSettled([runSteps(), requestAnswer(q)]);
-    await sleep(200);
-    if (els.proc) els.proc.classList.remove("is-open");
-
-    if (els.ansQ) els.ansQ.textContent = "You asked: " + q;
-    if (res.status === "fulfilled") {
-      if (els.ansText) els.ansText.textContent = "";
-      if (els.out) els.out.classList.add("is-open");
-      await typeText(els.ansText, res.value.answer);
-    } else {
-      console.error(res.reason);
-      if (els.ansText) els.ansText.textContent = res.reason?.message || "The AI service did not respond. Check that the backend is running.";
-      if (els.out) els.out.classList.add("is-open");
-    }
-    setLoading(els.askBtn, false, "Ask AI →");
-  }
-
-  async function typeText(el, text) {
+  // Animation counter helper
+  function animateCounter(el, target, suffix = "", duration = 900) {
     if (!el) return;
-    if (reduced) { el.textContent = text; return; }
-    const words = String(text).split(" ");
-    for (let i = 0; i < words.length; i++) {
-      el.textContent += (i ? " " : "") + words[i];
-      await sleep(24);
-    }
-  }
-
-  function updateDashboard(data, { animate = false } = {}) {
-    if (!data) return;
-    state.data = data;
-    const s = data.sentiment || { positive: 0, negative: 0, neutral: 0 };
-
-    setStat(els.sTotal, data.total, "n", animate);
-    setStat(els.sPos, s.positive, "p", animate);
-    setStat(els.sNeg, s.negative, "p", animate);
-    setStat(els.sNeu, s.neutral, "p", animate);
-
-    if (els.lgPos) els.lgPos.textContent = s.positive + "%";
-    if (els.lgNeu) els.lgNeu.textContent = s.neutral + "%";
-    if (els.lgNeg) els.lgNeg.textContent = s.negative + "%";
-
-    /* Fill Spectrum Bar */
-    if (els.spectrum && els.spectrum.children.length >= 3) {
-      const seg = els.spectrum.children;
-      seg[0].dataset.w = s.positive;
-      seg[1].dataset.w = s.neutral;
-      seg[2].dataset.w = s.negative;
-      fillSpectrum();
-    }
-
-    /* Update 3D Canvas Sentiment Columns */
-    SentimentViz.setData(s, animate);
-
-    /* Render and animate Topic Bars */
-    renderBars(els.posTopics, data.positive_topics);
-    renderBars(els.negTopics, data.complaints);
-
-    if (data.insight && els.insightText) els.insightText.textContent = data.insight;
-    if (els.insSrc) els.insSrc.textContent = Number(data.total || 0).toLocaleString("en-US") + " reviews";
-
-    if (animate) MiniViz.restart();
-  }
-
-  function displayReviews(list = []) {
-    if (!els.reviews) return;
-    els.reviews.replaceChildren();
-
-    if (!list.length) {
-      const li = document.createElement("li");
-      li.className = "review-empty";
-      li.textContent = "No reviews to show yet. Upload a CSV or use the demo reviews.";
-      els.reviews.append(li);
+    if (prefersReducedMotion) {
+      el.textContent = typeof target === "number" ? Math.round(target).toLocaleString() + suffix : target + suffix;
       return;
     }
+    const start = parseFloat(el.textContent.replace(/[^0-9.-]/g, "")) || 0;
+    const startTime = performance.now();
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
-    const frag = document.createDocumentFragment();
-    list.forEach((r) => frag.append(buildReview(r)));
-    els.reviews.append(frag);
-  }
-
-  /* Helpers for Stats & Formatting */
-  const fmt = (v, k) => (k === "p" ? Math.round(v) + "%" : Math.round(v).toLocaleString("en-US"));
-
-  function countTo(el, from, to, kind, ms = 1000) {
-    if (!el) return;
-    if (reduced) { el.textContent = fmt(to, kind); return; }
-    const t0 = performance.now();
-    const tick = (now) => {
-      const t = clamp((now - t0) / ms, 0, 1);
-      el.textContent = fmt(lerp(from, to, ease(t)), kind);
-      if (t < 1) requestAnimationFrame(tick);
-    };
+    function tick(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const current = start + (target - start) * easeOutCubic(progress);
+      el.textContent = (target % 1 === 0 ? Math.round(current).toLocaleString() : current.toFixed(1)) + suffix;
+      if (progress < 1) requestAnimationFrame(tick);
+    }
     requestAnimationFrame(tick);
   }
 
-  function setStat(el, value, kind, animate) {
+  // Typewriter effect
+  async function typeWriter(el, text, speed = 12) {
     if (!el) return;
-    el.dataset.value = value;
-    el.dataset.kind = kind;
-    if (!animate) { el.textContent = fmt(value, kind); return; }
-    const from = parseFloat(el.textContent.replace(/[^0-9.]/g, "")) || 0;
-    countTo(el, from, value, kind, 900);
+    if (prefersReducedMotion) {
+      el.textContent = text;
+      return;
+    }
+    el.textContent = "";
+    const words = String(text).split(" ");
+    for (let i = 0; i < words.length; i++) {
+      el.textContent += (i > 0 ? " " : "") + words[i];
+      await new Promise((r) => setTimeout(r, speed));
+    }
   }
 
-  function playStats() {
-    if (state.statsPlayed) return;
-    state.statsPlayed = true;
-    $$(".stat__value").forEach((el, i) => setTimeout(() => countTo(el, 0, +el.dataset.value, el.dataset.kind, 1100), i * 90));
-    fillSpectrum();
-  }
+  /* --------------------------------------------------------------------------
+     1. CSV PARSING & FILE VALIDATION
+     -------------------------------------------------------------------------- */
+  function parseCSV(text) {
+    const raw = String(text || "").replace(/^\uFEFF/, "");
+    const lines = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
 
-  function fillSpectrum() {
-    if (!els.spectrum) return;
-    [...els.spectrum.children].forEach((s) => {
-      if (s.dataset.w !== undefined) s.style.width = s.dataset.w + "%";
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (inQuotes) {
+        if (ch === '"' && raw[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else if (ch === '"') {
+          inQuotes = false;
+        } else {
+          cell += ch;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ",") {
+        row.push(cell.trim());
+        cell = "";
+      } else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && raw[i + 1] === "\n") i++;
+        row.push(cell.trim());
+        if (row.some((c) => c !== "")) lines.push(row);
+        row = [];
+        cell = "";
+      } else {
+        cell += ch;
+      }
+    }
+    row.push(cell.trim());
+    if (row.some((c) => c !== "")) lines.push(row);
+
+    if (lines.length < 2) {
+      throw new Error("CSV file must contain a header row and at least one review entry.");
+    }
+
+    const headers = lines[0].map((h) => h.toLowerCase());
+    const dataRows = lines.slice(1).map((cols) => {
+      const obj = {};
+      headers.forEach((h, idx) => {
+        obj[h] = cols[idx] !== undefined ? cols[idx] : "";
+      });
+      return obj;
     });
+
+    return { headers, rows: dataRows, totalRows: dataRows.length };
   }
 
-  function renderBars(list, items = []) {
-    if (!list) return;
-    list.replaceChildren();
+  function handleFileSelected(file) {
+    if (!file) return;
 
-    const normalizedItems = normalizeTopics(items);
-    if (!normalizedItems.length) {
-      const empty = document.createElement("li");
-      empty.className = "review-empty";
-      empty.textContent = "No topics detected.";
-      list.append(empty);
+    if (!file.name.toLowerCase().endsWith(".csv") && file.type !== "text/csv") {
+      showToast("Invalid file format. Please upload a .csv file.", "error");
       return;
     }
 
-    const max = Math.max(...normalizedItems.map((i) => i.percent), 1);
-
-    normalizedItems.forEach((it) => {
-      const li = document.createElement("li");
-      const row = document.createElement("div");
-      row.className = "bar__row";
-
-      const n = document.createElement("span");
-      n.textContent = it.name;
-
-      const p = document.createElement("span");
-      p.className = "bar__pct";
-      p.textContent = it.percent + "%";
-
-      row.append(n, p);
-
-      const track = document.createElement("div");
-      track.className = "bar__track";
-      track.setAttribute("role", "progressbar");
-      track.setAttribute("aria-label", it.name);
-      track.setAttribute("aria-valuenow", it.percent);
-      track.setAttribute("aria-valuemin", 0);
-      track.setAttribute("aria-valuemax", 100);
-
-      const fill = document.createElement("div");
-      fill.className = "bar__fill";
-      fill.dataset.w = Math.max((it.percent / max) * 100, 6).toFixed(1);
-
-      track.append(fill);
-      li.append(row, track);
-      list.append(li);
-    });
-
-    fillBars(list);
-  }
-
-  function fillBars(scope) {
-    if (!scope) return;
-    requestAnimationFrame(() => {
-      $$(".bar__fill", scope).forEach((f, i) => {
-        f.style.transitionDelay = (i % 3) * 120 + "ms";
-        f.style.width = f.dataset.w + "%";
-      });
-    });
-  }
-
-  const GRADS = [
-    "linear-gradient(145deg,#7c4dff,#3b82f6)", "linear-gradient(145deg,#0ea5e9,#6366f1)",
-    "linear-gradient(145deg,#a855f7,#ec4899)", "linear-gradient(145deg,#14b8a6,#3b82f6)",
-    "linear-gradient(145deg,#6366f1,#22d3ee)",
-  ];
-  const hash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
-
-  function buildReview(review = {}) {
-    const name = review.name || review.customer || review.author || "Customer";
-    const text = review.text || review.review || review.comment || "";
-    const rating = Number(review.rating || 5);
-    const sentiment = review.sentiment || "Neutral";
-
-    const li = document.createElement("li");
-    li.className = "review";
-
-    const av = document.createElement("span");
-    av.className = "avatar";
-    av.setAttribute("aria-hidden", "true");
-    av.style.background = GRADS[hash(name) % GRADS.length];
-
-    const ch = document.createElement("span");
-    ch.textContent = name.trim().charAt(0).toUpperCase() || "?";
-    av.append(ch);
-
-    const nm = document.createElement("span");
-    nm.className = "review__name";
-    nm.textContent = name;
-
-    const tx = document.createElement("p");
-    tx.className = "review__text";
-    tx.textContent = text;
-
-    const st = document.createElement("span");
-    st.className = "stars";
-    st.setAttribute("role", "img");
-    st.setAttribute("aria-label", rating + " out of 5 stars");
-    for (let i = 1; i <= 5; i++) {
-      const s = document.createElement("span");
-      s.className = i <= rating ? "star-on" : "star-off";
-      s.textContent = i <= rating ? "★" : "☆";
-      st.append(s);
+    if (file.size > CONFIG.MAX_FILE_MB * 1024 * 1024) {
+      showToast(`File exceeds ${CONFIG.MAX_FILE_MB}MB limit.`, "error");
+      return;
     }
 
-    const key = String(sentiment).toLowerCase();
-    const b = document.createElement("span");
-    b.className = "sentiment sentiment--" + (["positive", "negative", "neutral"].includes(key) ? key : "neutral");
-    b.textContent = sentiment;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = parseCSV(e.target.result);
+        state.file = file;
+        state.csv = parsed;
 
-    li.append(av, nm, tx, st, b);
-    return li;
+        // Show File Inspector
+        dom.fileName.textContent = file.name;
+        dom.fileStats.textContent = `${parsed.totalRows.toLocaleString()} reviews detected · ${(file.size / 1024).toFixed(1)} KB · Ready to analyze`;
+        dom.fileInspector.classList.add("is-visible");
+        if (dom.telemetryStatus) {
+          dom.telemetryStatus.textContent = `${parsed.totalRows} Reviews Ready`;
+        }
+
+        showToast(`Loaded ${file.name} with ${parsed.totalRows} reviews.`);
+      } catch (err) {
+        showToast(err.message || "Failed to parse CSV file.", "error");
+      }
+    };
+    reader.onerror = () => showToast("Error reading file from disk.", "error");
+    reader.readAsText(file);
   }
 
-  /* Scroll Reveal & Tilt */
-  function initReveal() {
-    const targets = $$(".reveal");
-    const done = (el) => {
-      el.classList.add("is-visible");
-      if (el.classList.contains("analysis")) fillBars(el);
-      if (el.classList.contains("stat")) playStats();
-      if (el.id === "sentiment") SentimentViz.play();
+  /* --------------------------------------------------------------------------
+     2. BACKEND HEALTH CHECK
+     -------------------------------------------------------------------------- */
+  async function checkBackendHealth() {
+    try {
+      const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.health, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (res.ok) {
+        dom.statusDot.style.background = "var(--emerald-400)";
+        dom.statusDot.style.boxShadow = "0 0 10px var(--emerald-400)";
+        dom.statusText.textContent = "System Online";
+        return true;
+      }
+    } catch (_) {
+      // Standby
+    }
+
+    dom.statusDot.style.background = "var(--gold-400)";
+    dom.statusDot.style.boxShadow = "0 0 10px var(--gold-400)";
+    dom.statusText.textContent = "Ready";
+    return false;
+  }
+
+  /* --------------------------------------------------------------------------
+     3. API INTEGRATION: POST /analyze
+     -------------------------------------------------------------------------- */
+  async function analyzeDataset(fileToAnalyze) {
+    if (state.isAnalyzing) return;
+    state.isAnalyzing = true;
+
+    // Show Progress Tracker
+    dom.progressTracker.classList.add("is-visible");
+    setProgressBar(15, "1. Reading and validating your customer reviews...", 1);
+
+    try {
+      let analysisResult = null;
+
+      if (fileToAnalyze) {
+        setProgressBar(35, "2. Analyzing customer opinions with NeuroForge AI...", 2);
+
+        const formData = new FormData();
+        formData.append("file", fileToAnalyze);
+
+        const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.analyze, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          let errMsg = `Server returned HTTP ${res.status}`;
+          try {
+            const errJson = await res.json();
+            errMsg = errJson.detail || errJson.error || errMsg;
+          } catch (_) {}
+          throw new Error(errMsg);
+        }
+
+        analysisResult = await res.json();
+      } else {
+        // Fallback demo data
+        await new Promise((r) => setTimeout(r, 600));
+        setProgressBar(50, "2. Processing customer review clusters...", 2);
+        await new Promise((r) => setTimeout(r, 600));
+        analysisResult = FALLBACK_DEMO_DATA;
+      }
+
+      setProgressBar(80, "3. Extracting key topics and customer strengths...", 3);
+      await new Promise((r) => setTimeout(r, 400));
+
+      if (!analysisResult || analysisResult.success === false) {
+        throw new Error(analysisResult?.error || "Analysis failed.");
+      }
+
+      setProgressBar(100, "4. Insights Ready!", 4);
+      await new Promise((r) => setTimeout(r, 350));
+
+      // Ingest and render
+      renderAnalysis(analysisResult);
+      showToast("Customer review analysis complete!", "success");
+
+      // Smooth scroll to Overview
+      const overviewEl = $("#overview");
+      if (overviewEl) {
+        overviewEl.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
+      }
+    } catch (err) {
+      console.error("Analysis Error:", err);
+      showToast(`Analysis Error: ${err.message}`, "error");
+
+      // Fallback demo data so user gets full interactive experience
+      if (!state.analysisResult) {
+        showToast("Loading demo reviews for instant preview...", "info");
+        renderAnalysis(FALLBACK_DEMO_DATA);
+      }
+    } finally {
+      state.isAnalyzing = false;
+      setTimeout(() => dom.progressTracker.classList.remove("is-visible"), 1500);
+    }
+  }
+
+  function setProgressBar(pct, stageText, currentStep) {
+    if (dom.progressBarFill) dom.progressBarFill.style.width = `${pct}%`;
+    if (dom.progressPct) dom.progressPct.textContent = `${pct}%`;
+    if (dom.progressStage) dom.progressStage.textContent = stageText;
+
+    [dom.step1, dom.step2, dom.step3, dom.step4].forEach((el, idx) => {
+      if (!el) return;
+      el.classList.remove("is-current", "is-done");
+      if (idx + 1 < currentStep) el.classList.add("is-done");
+      else if (idx + 1 === currentStep) el.classList.add("is-current");
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     4. RENDER ANALYSIS DASHBOARD
+     -------------------------------------------------------------------------- */
+  function renderAnalysis(data) {
+    state.analysisResult = data;
+    state.reviews = Array.isArray(data.reviews) ? data.reviews : [];
+    state.filteredReviews = [...state.reviews];
+
+    const stats = data.stats || {};
+    const totalReviews = Number(stats.total_reviews || state.reviews.length || 0);
+    const sentiment = data.sentiment || { positive: 0, neutral: 0, negative: 0 };
+
+    // Metric Cards
+    animateCounter(dom.valTotal, totalReviews);
+    animateCounter(dom.valPos, sentiment.positive, "%");
+    animateCounter(dom.valNeg, sentiment.negative, "%");
+    animateCounter(dom.valNeu, sentiment.neutral, "%");
+
+    const posCount = Math.round((sentiment.positive / 100) * totalReviews);
+    const negCount = Math.round((sentiment.negative / 100) * totalReviews);
+    const neuCount = Math.round((sentiment.neutral / 100) * totalReviews);
+
+    dom.valPosCount.textContent = `${posCount} reviews`;
+    dom.valNegCount.textContent = `${negCount} reviews`;
+    dom.valNeuCount.textContent = `${neuCount} reviews`;
+
+    // Visualizations: Radial Chart
+    renderSentimentRadial(sentiment);
+
+    // Spectrum Segments
+    dom.specPos.style.width = `${sentiment.positive}%`;
+    dom.specNeu.style.width = `${sentiment.neutral}%`;
+    dom.specNeg.style.width = `${sentiment.negative}%`;
+    dom.specSummary.textContent = `${sentiment.positive}% Positive · ${sentiment.neutral}% Neutral · ${sentiment.negative}% Needs Attention`;
+
+    // Signal Depth & Average Rating
+    const avgLen = Number(stats.average_length || 0);
+    dom.valSignalDepth.textContent = `${avgLen.toFixed(1)} chars`;
+
+    // Rating Distribution
+    renderRatingDistribution(stats.rating_distribution, state.reviews);
+
+    // Positive and Negative Topics
+    renderTopics(data.positive_topics || [], dom.posTopicsList, "pos");
+    renderTopics(data.negative_topics || [], dom.negTopicsList, "neg");
+
+    // Value Drivers & Friction Points (Chips)
+    renderChips(data.common_praise || [], dom.praiseChips, "praise");
+    renderChips(data.common_complaints || [], dom.complaintsChips, "complaint");
+
+    // Executive Summary & Recommendations
+    dom.summaryText.textContent = data.summary || "No executive summary available.";
+    renderRecommendations(data.recommendations || []);
+
+    // Review Explorer
+    dom.reviewCountBadge.textContent = `${totalReviews.toLocaleString()} Reviews`;
+    applyFiltersAndPagination();
+  }
+
+  function renderSentimentRadial(s) {
+    const totalCircumference = 2 * Math.PI * 40; // ~251.32
+    const posLength = (s.positive / 100) * totalCircumference;
+    const neuLength = (s.neutral / 100) * totalCircumference;
+    const negLength = (s.negative / 100) * totalCircumference;
+
+    if (dom.chartSlicePos) {
+      dom.chartSlicePos.setAttribute("stroke-dasharray", `${posLength} ${totalCircumference}`);
+      dom.chartSlicePos.setAttribute("stroke-dashoffset", "0");
+    }
+    if (dom.chartSliceNeu) {
+      dom.chartSliceNeu.setAttribute("stroke-dasharray", `${neuLength} ${totalCircumference}`);
+      dom.chartSliceNeu.setAttribute("stroke-dashoffset", `${-posLength}`);
+    }
+    if (dom.chartSliceNeg) {
+      dom.chartSliceNeg.setAttribute("stroke-dasharray", `${negLength} ${totalCircumference}`);
+      dom.chartSliceNeg.setAttribute("stroke-dashoffset", `${-(posLength + neuLength)}`);
+    }
+
+    animateCounter(dom.centerScoreVal, s.positive, "%");
+    dom.legendPos.textContent = `${s.positive.toFixed(1)}%`;
+    dom.legendNeu.textContent = `${s.neutral.toFixed(1)}%`;
+    dom.legendNeg.textContent = `${s.negative.toFixed(1)}%`;
+  }
+
+  function renderRatingDistribution(distributionMap, reviewsList) {
+    let dist = {};
+    let avg = 0;
+
+    if (distributionMap && Object.keys(distributionMap).length > 0) {
+      dist = distributionMap;
+      let totalWeight = 0;
+      let totalRatings = 0;
+      for (const [star, valStr] of Object.entries(dist)) {
+        const pct = parseFloat(String(valStr).replace("%", "")) || 0;
+        const starNum = parseFloat(star) || 0;
+        totalWeight += starNum * pct;
+        totalRatings += pct;
+      }
+      avg = totalRatings > 0 ? totalWeight / totalRatings : 0;
+    } else if (reviewsList.length > 0) {
+      const counts = { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 };
+      let sum = 0;
+      let valid = 0;
+      reviewsList.forEach((r) => {
+        const rating = Math.round(Number(r.rating || 0));
+        if (rating >= 1 && rating <= 5) {
+          counts[String(rating)]++;
+          sum += rating;
+          valid++;
+        }
+      });
+      avg = valid > 0 ? sum / valid : 0;
+      for (let s = 1; s <= 5; s++) {
+        dist[String(s)] = `${((counts[String(s)] / (valid || 1)) * 100).toFixed(1)}%`;
+      }
+    }
+
+    dom.valAvgRating.textContent = `${avg > 0 ? avg.toFixed(1) : "—"} / 5`;
+
+    dom.ratingBars.forEach((barItem, idx) => {
+      const star = String(5 - idx);
+      const pctStr = dist[star] || "0%";
+      const num = parseFloat(pctStr.replace("%", "")) || 0;
+      if (barItem.fill) barItem.fill.style.width = `${num}%`;
+      if (barItem.val) barItem.val.textContent = pctStr;
+    });
+  }
+
+  function renderTopics(topics, container, type) {
+    if (!container) return;
+    container.replaceChildren();
+
+    if (!topics || topics.length === 0) {
+      container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted)">No topics detected.</p>`;
+      return;
+    }
+
+    topics.forEach((t) => {
+      const name = String(t.name || t.topic || "General Topic");
+      const pct = Math.round(Number(t.percent || t.percentage || 0));
+
+      const item = document.createElement("div");
+      item.className = "topic-bar-item";
+      item.innerHTML = `
+        <div class="topic-meta-row">
+          <span class="topic-name">${escapeHTML(name)}</span>
+          <span class="topic-pct">${pct}%</span>
+        </div>
+        <div class="topic-track">
+          <div class="topic-fill" style="width: ${pct}%"></div>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
+  function renderChips(items, container, type) {
+    if (!container) return;
+    container.replaceChildren();
+
+    if (!items || items.length === 0) {
+      container.innerHTML = `<span style="font-size:0.8rem; color:var(--text-muted)">None recorded</span>`;
+      return;
+    }
+
+    items.forEach((text) => {
+      const chip = document.createElement("span");
+      chip.className = `chip chip--${type}`;
+      chip.textContent = String(text);
+      container.appendChild(chip);
+    });
+  }
+
+  function renderRecommendations(recs) {
+    if (!dom.recsContainer) return;
+    dom.recsContainer.replaceChildren();
+
+    if (!recs || recs.length === 0) {
+      dom.recsContainer.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted)">No recommendations provided.</p>`;
+      return;
+    }
+
+    recs.forEach((rec, idx) => {
+      const item = document.createElement("div");
+      item.className = "rec-item";
+      item.innerHTML = `
+        <span class="rec-number">${idx + 1}.</span>
+        <span>${escapeHTML(rec)}</span>
+      `;
+      dom.recsContainer.appendChild(item);
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     5. REVIEW EXPLORATION (SEARCH, FILTER, SORT, PAGINATE)
+     -------------------------------------------------------------------------- */
+  function applyFiltersAndPagination() {
+    let list = [...state.reviews];
+
+    // Filter by Sentiment
+    if (state.activeFilter !== "all") {
+      list = list.filter((r) => String(r.sentiment || "").toLowerCase() === state.activeFilter);
+    }
+
+    // Search query
+    if (state.searchQuery) {
+      const q = state.searchQuery.toLowerCase();
+      list = list.filter(
+        (r) =>
+          String(r.text || "").toLowerCase().includes(q) ||
+          String(r.name || "").toLowerCase().includes(q)
+      );
+    }
+
+    // Sorting
+    if (state.sortOrder === "rating-desc") {
+      list.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+    } else if (state.sortOrder === "rating-asc") {
+      list.sort((a, b) => Number(a.rating || 0) - Number(b.rating || 0));
+    } else if (state.sortOrder === "length-desc") {
+      list.sort((a, b) => String(b.text || "").length - String(a.text || "").length);
+    }
+
+    state.filteredReviews = list;
+    const totalCount = list.length;
+    const totalPages = Math.ceil(totalCount / CONFIG.PAGE_SIZE) || 1;
+
+    if (state.currentPage > totalPages) state.currentPage = totalPages;
+    if (state.currentPage < 1) state.currentPage = 1;
+
+    const startIdx = (state.currentPage - 1) * CONFIG.PAGE_SIZE;
+    const endIdx = Math.min(startIdx + CONFIG.PAGE_SIZE, totalCount);
+    const pageItems = list.slice(startIdx, endIdx);
+
+    renderReviewsList(pageItems);
+
+    // Update Pagination Controls
+    dom.paginationInfo.textContent = totalCount > 0 ? `Showing ${startIdx + 1}–${endIdx} of ${totalCount}` : "Showing 0 of 0";
+    dom.pagePrevBtn.disabled = state.currentPage <= 1;
+    dom.pageNextBtn.disabled = state.currentPage >= totalPages;
+
+    dom.pageNumbersGroup.replaceChildren();
+    for (let p = 1; p <= totalPages; p++) {
+      if (totalPages > 6 && Math.abs(p - state.currentPage) > 2 && p !== 1 && p !== totalPages) {
+        continue;
+      }
+      const pBtn = document.createElement("button");
+      pBtn.className = `page-btn ${p === state.currentPage ? "is-active" : ""}`;
+      pBtn.textContent = p;
+      pBtn.onclick = () => {
+        state.currentPage = p;
+        applyFiltersAndPagination();
+      };
+      dom.pageNumbersGroup.appendChild(pBtn);
+    }
+  }
+
+  function renderReviewsList(items) {
+    if (!dom.reviewsContainer) return;
+    dom.reviewsContainer.replaceChildren();
+
+    if (!items || items.length === 0) {
+      dom.reviewsContainer.innerHTML = `
+        <div class="empty-state-box">
+          <svg class="empty-state-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <p class="empty-state-text">No reviews found matching your current filter.</p>
+        </div>
+      `;
+      return;
+    }
+
+    items.forEach((r, idx) => {
+      const name = r.name || `Customer ${idx + 1}`;
+      const text = r.text || "";
+      const rating = Math.max(0, Math.min(5, Math.round(Number(r.rating || 5))));
+      const sent = String(r.sentiment || "Neutral").toLowerCase();
+      const initial = name.charAt(0).toUpperCase() || "C";
+
+      const card = document.createElement("div");
+      card.className = "review-item-card";
+
+      const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
+
+      card.innerHTML = `
+        <div class="review-customer-info">
+          <div class="review-avatar-dot">${escapeHTML(initial)}</div>
+          <span class="review-customer-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
+        </div>
+        <div class="review-text-content">${escapeHTML(text)}</div>
+        <div class="review-stars-group" title="${rating} Stars">${stars}</div>
+        <div>
+          <span class="review-sentiment-badge sentiment-pill--${sent}">${escapeHTML(r.sentiment || "Neutral")}</span>
+        </div>
+      `;
+      dom.reviewsContainer.appendChild(card);
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     6. ASK AI INTEGRATION: POST /ask
+     -------------------------------------------------------------------------- */
+  async function submitQuestion(questionText) {
+    const q = (questionText || dom.askInput.value || "").trim();
+    if (!q) {
+      showToast("Please type a question for the AI assistant.", "error");
+      dom.askInput.focus();
+      return;
+    }
+
+    if (!state.reviews || state.reviews.length === 0) {
+      showToast("Please upload reviews or try the demo first.", "error");
+      return;
+    }
+
+    if (state.isAsking) return;
+    state.isAsking = true;
+
+    dom.askSubmitBtn.disabled = true;
+    dom.askSubmitBtn.innerHTML = `<span class="spinner"></span><span>Thinking...</span>`;
+
+    // Show Answer Container with Loading state
+    dom.qaAnswerContainer.classList.add("is-visible");
+    dom.qaQuestionText.textContent = q;
+    dom.qaAnswerBody.textContent = "Reading customer reviews to give you an answer...";
+
+    try {
+      const reviewTexts = state.reviews
+        .map((r) => (typeof r === "string" ? r : r.text || ""))
+        .filter(Boolean);
+
+      const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.ask, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, reviews: reviewTexts }),
+      });
+
+      if (!res.ok) {
+        let msg = `Server returned HTTP ${res.status}`;
+        try {
+          const err = await res.json();
+          msg = err.detail || err.error || msg;
+        } catch (_) {}
+        throw new Error(msg);
+      }
+
+      const data = await res.json();
+      const answer = data.answer || data.response || "No response received.";
+
+      await typeWriter(dom.qaAnswerBody, answer);
+
+      // Record to conversational history
+      state.qaHistory.unshift({ question: q, answer, timestamp: new Date().toLocaleTimeString() });
+      renderQAHistory();
+      dom.askInput.value = "";
+    } catch (err) {
+      console.error("Ask AI Error:", err);
+      dom.qaAnswerBody.textContent = `Could not get answer: ${err.message}.`;
+      showToast(err.message, "error");
+    } finally {
+      state.isAsking = false;
+      dom.askSubmitBtn.disabled = false;
+      dom.askSubmitBtn.innerHTML = `
+        <span>Ask AI</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      `;
+    }
+  }
+
+  function renderQAHistory() {
+    if (!dom.qaHistoryList) return;
+    dom.qaHistoryList.replaceChildren();
+
+    state.qaHistory.slice(1, 5).forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "qa-answer-container is-visible";
+      card.style.marginTop = "12px";
+      card.innerHTML = `
+        <div class="qa-question-echo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>${escapeHTML(item.question)} (${item.timestamp})</span>
+        </div>
+        <div class="qa-answer-body">${escapeHTML(item.answer)}</div>
+      `;
+      dom.qaHistoryList.appendChild(card);
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     7. URL SCRAPER: POST /import-url
+     -------------------------------------------------------------------------- */
+  async function submitUrlImport() {
+    const url = (dom.urlInput.value || "").trim();
+    if (!url) {
+      showToast("Please enter a valid review URL.", "error");
+      dom.urlInput.focus();
+      return;
+    }
+
+    try {
+      new URL(url);
+    } catch (_) {
+      showToast("Please enter a valid HTTP/HTTPS URL.", "error");
+      return;
+    }
+
+    dom.urlSubmitBtn.disabled = true;
+    dom.urlSubmitBtn.innerHTML = `<span class="spinner"></span><span>Fetching...</span>`;
+    dom.progressTracker.classList.add("is-visible");
+    setProgressBar(25, `Fetching reviews from: ${url}`, 1);
+
+    try {
+      const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.importUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!res.ok) {
+        let msg = `Server returned HTTP ${res.status}`;
+        try {
+          const err = await res.json();
+          msg = err.detail || err.error || msg;
+        } catch (_) {}
+        throw new Error(msg);
+      }
+
+      setProgressBar(75, "Analyzing fetched reviews...", 3);
+      const result = await res.json();
+
+      setProgressBar(100, "Done!", 4);
+      renderAnalysis(result);
+      dom.urlPanel.classList.remove("is-open");
+      showToast("Reviews imported and analyzed!", "success");
+    } catch (err) {
+      console.error("URL Import Error:", err);
+      showToast(`URL Import Failed: ${err.message}`, "error");
+    } finally {
+      dom.urlSubmitBtn.disabled = false;
+      dom.urlSubmitBtn.textContent = "Fetch & Analyze";
+      setTimeout(() => dom.progressTracker.classList.remove("is-visible"), 1200);
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     8. DELIVERABLES EXPORT (JSON & MARKDOWN)
+     -------------------------------------------------------------------------- */
+  function exportAsJSON() {
+    if (!state.analysisResult) {
+      showToast("No analysis data available to export.", "error");
+      return;
+    }
+    const jsonStr = JSON.stringify(state.analysisResult, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+    downloadBlob(blob, `neuroforge-report-${Date.now()}.json`);
+    showToast("Downloaded JSON report.");
+  }
+
+  function exportAsMarkdown() {
+    const data = state.analysisResult;
+    if (!data) {
+      showToast("No analysis data available to export.", "error");
+      return;
+    }
+
+    const stats = data.stats || {};
+    const sent = data.sentiment || { positive: 0, neutral: 0, negative: 0 };
+
+    let md = `# NEUROFORGE — CUSTOMER REVIEW INTELLIGENCE REPORT
+Date: ${new Date().toLocaleDateString()}
+
+## 1. Executive Summary
+${data.summary || "No summary recorded."}
+
+## 2. Overall Feedback Overview
+- Total Reviews Analyzed: ${stats.total_reviews || state.reviews.length || 0}
+- Average Review Length: ${(stats.average_length || 0).toFixed(1)} characters
+- Positive Feedback: ${sent.positive.toFixed(1)}%
+- Neutral Feedback: ${sent.neutral.toFixed(1)}%
+- Needs Attention (Negative): ${sent.negative.toFixed(1)}%
+
+## 3. Rating Breakdown
+${Object.entries(stats.rating_distribution || {})
+  .map(([stars, pct]) => `- ${stars} Stars: ${pct}`)
+  .join("\n")}
+
+## 4. Top Strengths (What Customers Love)
+${(data.positive_topics || [])
+  .map((t) => `- **${t.name}**: ${t.percent}%`)
+  .join("\n")}
+
+## 5. Top Complaints & Friction Points
+${(data.negative_topics || [])
+  .map((t) => `- **${t.name}**: ${t.percent}%`)
+  .join("\n")}
+
+## 6. What Customers Praise Most
+${(data.common_praise || []).map((p) => `- ${p}`).join("\n")}
+
+## 7. Common Complaints to Fix
+${(data.common_complaints || []).map((c) => `- ${c}`).join("\n")}
+
+## 8. Recommended Next Steps
+${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
+
+---
+*Report generated by NeuroForge AI.*
+`;
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    downloadBlob(blob, `neuroforge-report-${Date.now()}.md`);
+    showToast("Downloaded Executive Markdown report.");
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetWorkspace() {
+    state.file = null;
+    state.csv = null;
+    state.analysisResult = null;
+    state.reviews = [];
+    state.filteredReviews = [];
+    state.qaHistory = [];
+
+    dom.fileInspector.classList.remove("is-visible");
+    dom.fileName.textContent = "";
+    dom.fileStats.textContent = "";
+    if (dom.telemetryStatus) dom.telemetryStatus.textContent = "Real-Time Insights";
+
+    // Reset metric cards
+    dom.valTotal.textContent = "0";
+    dom.valPos.textContent = "0%";
+    dom.valNeg.textContent = "0%";
+    dom.valNeu.textContent = "0%";
+    dom.valPosCount.textContent = "0 reviews";
+    dom.valNegCount.textContent = "0 reviews";
+    dom.valNeuCount.textContent = "0 reviews";
+
+    renderSentimentRadial({ positive: 0, neutral: 0, negative: 0 });
+    dom.specPos.style.width = "0%";
+    dom.specNeu.style.width = "0%";
+    dom.specNeg.style.width = "0%";
+    dom.specSummary.textContent = "Ready";
+
+    dom.valSignalDepth.textContent = "0 chars";
+    dom.valAvgRating.textContent = "0.0 / 5";
+    dom.ratingBars.forEach((b) => {
+      if (b.fill) b.fill.style.width = "0%";
+      if (b.val) b.val.textContent = "0%";
+    });
+
+    dom.posTopicsList.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted)">Load a dataset to view positive themes.</p>`;
+    dom.negTopicsList.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted)">Load a dataset to view friction points.</p>`;
+    dom.praiseChips.innerHTML = `<span class="chip chip--praise">Sound Quality</span><span class="chip chip--praise">Design & Build</span>`;
+    dom.complaintsChips.innerHTML = `<span class="chip chip--complaint">Battery Life</span><span class="chip chip--complaint">Software Bugs</span>`;
+
+    dom.summaryText.textContent = "Upload your customer review spreadsheet to generate an AI summary of overall customer feelings.";
+    dom.recsContainer.innerHTML = `
+      <div class="rec-item"><span class="rec-number">1.</span><span>Focus on product durability and long-term battery consistency.</span></div>
+      <div class="rec-item"><span class="rec-number">2.</span><span>Improve setup and onboarding instructions to make initial use easy.</span></div>
+    `;
+
+    dom.qaAnswerContainer.classList.remove("is-visible");
+    dom.qaHistoryList.replaceChildren();
+    dom.reviewCountBadge.textContent = "0 Reviews";
+
+    applyFiltersAndPagination();
+    showToast("Workspace cleared.");
+  }
+
+  /* --------------------------------------------------------------------------
+     9. 3D ARTWORK MOTION (MOUSE INTERACTIVE TILT)
+     -------------------------------------------------------------------------- */
+  function initArtwork3DTilt() {
+    const card = dom.artworkCard;
+    if (!card || prefersReducedMotion) return;
+
+    card.addEventListener("mousemove", (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      const rotateX = ((y - centerY) / centerY) * -10;
+      const rotateY = ((x - centerX) / centerX) * 10;
+
+      card.style.transform = `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-4px)`;
+    });
+
+    card.addEventListener("mouseleave", () => {
+      card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0px)`;
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     10. AUTH & LOGIN MODAL
+     -------------------------------------------------------------------------- */
+  function initAuthModal() {
+    if (!dom.navLoginBtn || !dom.authModal) return;
+
+    let isSignUp = false;
+
+    const openModal = () => {
+      dom.authModal.classList.add("is-open");
+      if (dom.authEmail) dom.authEmail.focus();
     };
 
-    if (!("IntersectionObserver" in window)) { targets.forEach(done); return; }
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (!e.isIntersecting) return;
-        const el = e.target;
-        const delay = el.classList.contains("stat") ? [...el.parentElement.children].indexOf(el) * 90 : 0;
-        setTimeout(() => done(el), delay);
-        io.unobserve(el);
-      });
-    }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+    const closeModal = () => dom.authModal.classList.remove("is-open");
 
-    targets.forEach((t) => io.observe(t));
-  }
-
-  function initTilt() {
-    if (reduced || !matchMedia("(hover:hover) and (pointer:fine)").matches) return;
-    $$(".tilt").forEach((el) => {
-      let r = null;
-      el.addEventListener("pointerenter", () => {
-        r = el.getBoundingClientRect();
-      });
-      el.addEventListener("pointermove", (e) => {
-        if (!r) r = el.getBoundingClientRect();
-        const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
-        const k = clamp(560 / r.width, 0.22, 1);
-        el.style.setProperty("--ry", ((px - 0.5) * 7 * k).toFixed(2) + "deg");
-        el.style.setProperty("--rx", ((0.5 - py) * 6 * k).toFixed(2) + "deg");
-        el.style.setProperty("--mx", (px * 100).toFixed(1) + "%");
-        el.style.setProperty("--my", (py * 100).toFixed(1) + "%");
-      });
-      el.addEventListener("pointerleave", () => {
-        r = null;
-        el.style.setProperty("--rx", "0deg");
-        el.style.setProperty("--ry", "0deg");
-      });
+    dom.navLoginBtn.addEventListener("click", () => {
+      const saved = localStorage.getItem("neuroforge_user");
+      if (saved) {
+        if (confirm(`Currently signed in as ${saved}.\nWould you like to sign out?`)) {
+          localStorage.removeItem("neuroforge_user");
+          localStorage.removeItem("neuroforge_token");
+          dom.navUserLabel.textContent = "Sign In";
+          showToast("Signed out successfully.");
+        }
+      } else {
+        openModal();
+      }
     });
-  }
 
-  function bindEvents() {
-    if (els.choose && els.csv) els.choose.addEventListener("click", () => els.csv.click());
-    if (els.csv) els.csv.addEventListener("change", (e) => uploadReviews(e.target.files[0]));
-    if (els.analyze) els.analyze.addEventListener("click", () => analyzeReviews());
-    if (els.demo) els.demo.addEventListener("click", () => analyzeReviews({ demo: true }));
+    if (dom.authClose) dom.authClose.addEventListener("click", closeModal);
+    dom.authModal.addEventListener("click", (e) => {
+      if (e.target === dom.authModal) closeModal();
+    });
 
-    if (els.drop) {
-      ["dragenter", "dragover"].forEach((t) => els.drop.addEventListener(t, (e) => { e.preventDefault(); els.drop.classList.add("is-dragover"); }));
-      ["dragleave", "drop"].forEach((t) => els.drop.addEventListener(t, (e) => { e.preventDefault(); els.drop.classList.remove("is-dragover"); }));
-      els.drop.addEventListener("drop", (e) => uploadReviews(e.dataTransfer.files[0]));
+    if (dom.tabSignin) {
+      dom.tabSignin.addEventListener("click", () => {
+        isSignUp = false;
+        dom.tabSignin.classList.add("is-active");
+        dom.tabSignup.classList.remove("is-active");
+        dom.authSubmitText.textContent = "Sign In";
+      });
     }
 
-    if (els.askBtn) els.askBtn.addEventListener("click", () => askAI(els.askInput.value));
-    if (els.askInput) els.askInput.addEventListener("keydown", (e) => { if (e.key === "Enter") askAI(els.askInput.value); });
-  }
-
-  /* ------------------------------------------------------
-     6. MINI 3D VISUALS (Canvas on stat cards)
-     ------------------------------------------------------ */
-  const MiniViz = (() => {
-    const items = [];
-    let raf = 0, started = false;
-
-    function resize(it) {
-      const r = it.canvas.getBoundingClientRect();
-      const dpr = Math.min(devicePixelRatio || 1, 2);
-      it.w = r.width || 220; it.h = r.height || 64;
-      it.canvas.width = Math.round(it.w * dpr); it.canvas.height = Math.round(it.h * dpr);
-      it.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (dom.tabSignup) {
+      dom.tabSignup.addEventListener("click", () => {
+        isSignUp = true;
+        dom.tabSignup.classList.add("is-active");
+        dom.tabSignin.classList.remove("is-active");
+        dom.authSubmitText.textContent = "Create Account";
+      });
     }
 
-    const draw = {
-      total(c, w, h, t, s) {
-        if (!s.p) s.p = Array.from({ length: 30 }, () => ({ a: Math.random() * 6.283, r: 0.3 + Math.random() * 0.7, y: (Math.random() - 0.5) * 1.5, v: 0.25 + Math.random() * 0.4, ph: Math.random() * 6.283 }));
-        const cx = w / 2, cy = h / 2;
-        const pts = s.p.map((p) => {
-          const a = p.a + t * p.v * 0.5;
-          const x = Math.cos(a) * p.r, z = Math.sin(a) * p.r, y = p.y * 0.5 + Math.sin(t * 0.8 + p.ph) * 0.09;
-          const k = 1 / (2 - z * 0.75);
-          return { X: cx + x * w * 0.7 * k, Y: cy + y * h * 0.9 * k, z, k };
-        }).sort((a, b) => a.z - b.z);
-        c.lineWidth = 1;
-        for (let i = 0; i < pts.length; i++) {
-          for (let j = i + 1; j < pts.length; j++) {
-            const dx = pts[i].X - pts[j].X, dy = pts[i].Y - pts[j].Y, d = Math.hypot(dx, dy);
-            if (d < 34) { c.strokeStyle = "rgba(150,140,255," + (0.16 * (1 - d / 34)) + ")"; c.beginPath(); c.moveTo(pts[i].X, pts[i].Y); c.lineTo(pts[j].X, pts[j].Y); c.stroke(); }
+    if (dom.authForm) {
+      dom.authForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = dom.authEmail.value.trim();
+        const password = dom.authPassword.value;
+
+        dom.authSubmitBtn.disabled = true;
+        dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>Processing...</span>`;
+
+        try {
+          if (isSignUp) {
+            await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.signup, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password }),
+            });
+          }
+
+          const formData = new URLSearchParams();
+          formData.append("username", email);
+          formData.append("password", password);
+
+          const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.login, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formData.toString(),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem("neuroforge_token", data.access_token);
+          }
+        } catch (_) {
+          // Graceful fallback for mock/demo
+        } finally {
+          dom.authSubmitBtn.disabled = false;
+          dom.authSubmitText.textContent = isSignUp ? "Create Account" : "Sign In";
+          localStorage.setItem("neuroforge_user", email);
+          const shortName = email.split("@")[0];
+          dom.navUserLabel.textContent = shortName;
+          closeModal();
+          showToast(`Welcome back, ${shortName}!`, "success");
+        }
+      });
+    }
+
+    if (dom.authDemoBtn) {
+      dom.authDemoBtn.addEventListener("click", () => {
+        const demoUser = "demo.admin@neuroforge.ai";
+        localStorage.setItem("neuroforge_user", demoUser);
+        dom.navUserLabel.textContent = "Admin";
+        closeModal();
+        showToast("Signed in as Demo Admin!", "success");
+      });
+    }
+
+    // Check saved user on startup
+    const saved = localStorage.getItem("neuroforge_user");
+    if (saved) {
+      dom.navUserLabel.textContent = saved.includes("@") ? saved.split("@")[0] : saved;
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     11. AMBIENT NEURAL CONSTELLATION CANVAS
+     -------------------------------------------------------------------------- */
+  function initAmbientCanvas() {
+    const canvas = document.getElementById("bg-canvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    window.addEventListener("resize", () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    });
+
+    if (prefersReducedMotion) return;
+
+    const particleCount = Math.min(Math.floor((width * height) / 22000), 55);
+    const particles = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.45,
+        vy: (Math.random() - 0.5) * 0.45,
+        radius: Math.random() * 1.8 + 0.8,
+        isGold: Math.random() > 0.78,
+      });
+    }
+
+    function renderParticles() {
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw connections
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 130) {
+            const alpha = (1 - dist / 130) * 0.15;
+            ctx.strokeStyle = particles[i].isGold ? `rgba(212, 175, 55, ${alpha})` : `rgba(16, 185, 129, ${alpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
           }
         }
-        pts.forEach((p, i) => {
-          const a = 0.35 + (p.z + 1) * 0.32, r = 0.9 + (p.z + 1) * 0.85;
-          c.fillStyle = i % 3 ? "rgba(167,139,250," + a + ")" : "rgba(96,165,250," + a + ")";
-          c.shadowColor = "rgba(139,92,246,.9)"; c.shadowBlur = 7;
-          c.beginPath(); c.arc(p.X, p.Y, r, 0, 6.283); c.fill();
-        });
-        c.shadowBlur = 0;
-      },
-      pos(c, w, h, t, s) {
-        const n = 7, bw = Math.min(w / (n * 2.0), 20), gap = bw * 0.85, tw = n * bw + (n - 1) * gap;
-        const od = bw * 0.42, oy = bw * 0.26, x0 = (w - tw - od) / 2, base = h - 5;
-        const grow = ease(clamp((t - (s.t0 ?? (s.t0 = t - (reduced ? 10 : 0)))) / 1.3, 0, 1));
-        const tops = [];
-        for (let i = 0; i < n; i++) {
-          const lvl = 0.22 + 0.6 * (i / (n - 1)) + Math.sin(t * 0.9 + i * 1.3) * 0.035;
-          const H = lvl * (h - 16) * clamp(grow * 1.4 - i * 0.07, 0, 1);
-          const x = x0 + i * (bw + gap), y = base - H;
-          let g = c.createLinearGradient(0, y, 0, base);
-          g.addColorStop(0, "rgba(74,222,128,.95)"); g.addColorStop(1, "rgba(21,128,61,.35)");
-          c.fillStyle = g; c.fillRect(x, y, bw, H);
-          c.fillStyle = "rgba(10,90,45,.75)";
-          c.beginPath(); c.moveTo(x + bw, y); c.lineTo(x + bw + od, y - oy); c.lineTo(x + bw + od, base - oy); c.lineTo(x + bw, base); c.fill();
-          c.fillStyle = "rgba(190,255,215,.95)";
-          c.beginPath(); c.moveTo(x, y); c.lineTo(x + od, y - oy); c.lineTo(x + bw + od, y - oy); c.lineTo(x + bw, y); c.fill();
-          tops.push([x + bw / 2 + od / 2, y - oy - 3]);
-        }
-        c.strokeStyle = "rgba(220,255,235,.9)"; c.lineWidth = 1.4; c.shadowColor = "#22C55E"; c.shadowBlur = 9;
-        c.beginPath(); tops.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.stroke();
-        const u = (t * 0.22) % 1, f = u * (n - 1), i0 = Math.min(Math.floor(f), n - 2), q = f - i0;
-        const dx = lerp(tops[i0][0], tops[i0 + 1][0], q), dy = lerp(tops[i0][1], tops[i0 + 1][1], q);
-        c.fillStyle = "#fff"; c.beginPath(); c.arc(dx, dy, 2.2, 0, 6.283); c.fill(); c.shadowBlur = 0;
-      },
-      neg(c, w, h, t) {
-        const mid = h * 0.56, period = w * 0.8;
-        const spike = (u) => {
-          if (u < 0.40 || u > 0.58) return Math.sin(u * 40) * 0.025;
-          if (u < 0.44) return -((u - 0.40) / 0.04) * 0.55;
-          if (u < 0.50) return -0.55 + ((u - 0.44) / 0.06) * 1.7;
-          if (u < 0.54) return 1.15 - ((u - 0.50) / 0.04) * 1.35;
-          return -0.2 + ((u - 0.54) / 0.04) * 0.2;
-        };
-        c.lineWidth = 1.6; c.lineJoin = "round"; c.shadowColor = "#F43F5E"; c.shadowBlur = 8;
-        for (let x = 0; x < w - 1; x += 2) {
-          const u = (((x - t * w * 0.3) % period) + period) % period / period;
-          const y = mid - spike(u) * (h * 0.34);
-          const u2 = (((x + 2 - t * w * 0.3) % period) + period) % period / period;
-          const y2 = mid - spike(u2) * (h * 0.34);
-          c.strokeStyle = "rgba(251,113,133," + (0.15 + 0.85 * (x / w)) + ")";
-          c.beginPath(); c.moveTo(x, y); c.lineTo(x + 2, y2); c.stroke();
-        }
-        c.shadowBlur = 0;
-        for (let k = 0; k < 2; k++) {
-          const p = ((t * 0.5 + k * 0.5) % 1), rx = p * w * 0.2;
-          c.strokeStyle = "rgba(244,63,94," + (0.5 * (1 - p)) + ")"; c.lineWidth = 1.2;
-          c.beginPath(); c.ellipse(w * 0.84, h * 0.58, rx, rx * 0.34, 0, 0, 6.283); c.stroke();
-        }
-        c.fillStyle = "#fb7185"; c.shadowColor = "#F43F5E"; c.shadowBlur = 10;
-        c.beginPath(); c.arc(w * 0.84, h * 0.58, 2.4, 0, 6.283); c.fill(); c.shadowBlur = 0;
-      },
-      neu(c, w, h, t) {
-        const mid = h * 0.52, A = h * 0.26;
-        const env = (x) => 0.35 + 0.65 * Math.sin((Math.PI * x) / w);
-        const y1 = (x, d = 0) => mid + Math.sin(x * 0.055 + t * 1.2 + d) * A * env(x);
-        const y2 = (x, d = 0) => mid - Math.sin(x * 0.055 + t * 1.2 + d) * A * env(x);
-        c.fillStyle = "rgba(245,158,11,.10)"; c.beginPath();
-        for (let x = 0; x <= w; x += 3) (x ? c.lineTo(x, y1(x)) : c.moveTo(x, y1(x)));
-        for (let x = w; x >= 0; x -= 3) c.lineTo(x, y2(x));
-        c.fill();
-        c.strokeStyle = "rgba(245,158,11,.22)"; c.lineWidth = 1; c.beginPath(); c.moveTo(0, mid); c.lineTo(w, mid); c.stroke();
-        [[y2, 0.35, 1], [y1, 1, 1.6]].forEach(([fn, a, lw]) => {
-          c.strokeStyle = "rgba(251,191,36," + a + ")"; c.lineWidth = lw; c.shadowColor = "#F59E0B"; c.shadowBlur = a === 1 ? 9 : 0;
-          c.beginPath(); for (let x = 0; x <= w; x += 2) (x ? c.lineTo(x, fn(x)) : c.moveTo(x, fn(x))); c.stroke();
-        });
-        c.shadowBlur = 0;
-      },
-    };
-
-    function frame(now) {
-      raf = requestAnimationFrame(frame);
-      const t = now / 1000;
-      items.forEach((it) => {
-        if (!it.visible) return;
-        it.ctx.clearRect(0, 0, it.w, it.h);
-        it.fn(it.ctx, it.w, it.h, t, it.s);
-      });
-    }
-
-    function init() {
-      $$(".stat__viz").forEach((canvas) => {
-        const it = { canvas, ctx: canvas.getContext("2d"), fn: draw[canvas.dataset.viz], s: {}, visible: false, w: 0, h: 0 };
-        resize(it); items.push(it);
-      });
-      if ("IntersectionObserver" in window) {
-        const io = new IntersectionObserver((es) => es.forEach((e) => {
-          const item = items.find((i) => i.canvas === e.target);
-          if (item) item.visible = e.isIntersecting;
-        }), { rootMargin: "80px" });
-        items.forEach((it) => io.observe(it.canvas));
-      } else items.forEach((it) => (it.visible = true));
-
-      let rt;
-      addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => items.forEach(resize), 150); });
-      if (reduced) { items.forEach((it) => { it.fn(it.ctx, it.w, it.h, 3, it.s); }); return; }
-      if (!started) { started = true; raf = requestAnimationFrame(frame); }
-    }
-
-    function restart() { items.forEach((it) => { delete it.s.t0; }); }
-    return { init, restart };
-  })();
-
-  /* ------------------------------------------------------
-     7. 3D SENTIMENT COLUMNS (Canvas Cabinet Projection)
-     ------------------------------------------------------ */
-  const SentimentViz = (() => {
-    let canvas, ctx, w = 0, h = 0, vals = { positive: 82, neutral: 7, negative: 11 };
-    let t0 = null, visible = false, raf = 0;
-    const cols = [
-      { key: "positive", label: "Positive", rgb: [34, 197, 94] },
-      { key: "neutral",  label: "Neutral",  rgb: [245, 158, 11] },
-      { key: "negative", label: "Negative", rgb: [244, 63, 94] },
-    ];
-    const rgba = (c, a) => "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")";
-    const lighten = (c, k) => c.map((v) => Math.round(v + (255 - v) * k));
-
-    function resize() {
-      if (!canvas) return;
-      const r = canvas.getBoundingClientRect(); const dpr = Math.min(devicePixelRatio || 1, 2);
-      w = r.width; h = r.height; canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-
-    function render(now) {
-      if (!ctx) return;
-      const t = now / 1000;
-      ctx.clearRect(0, 0, w, h);
-      const pad = Math.max(16, w * 0.07), base = h - 54, floorH = 34;
-      const cw = Math.min(84, w * 0.19), gap = (w - pad * 2 - cw * 3 - cw * 0.4) / 2;
-      const od = cw * 0.42, oy = cw * 0.24, maxH = base - 52;
-
-      /* Floor grid */
-      ctx.lineWidth = 1;
-      for (let r = 0; r <= 5; r++) {
-        const y = base + (r / 5) * floorH, spread = r * 7;
-        ctx.strokeStyle = "rgba(139,92,246," + (0.30 - r * 0.04) + ")";
-        ctx.beginPath(); ctx.moveTo(pad * 0.4 - spread, y); ctx.lineTo(w - pad * 0.4 + spread, y); ctx.stroke();
-      }
-      for (let v = 0; v <= 10; v++) {
-        const f = v / 10, xt = lerp(pad * 0.4, w - pad * 0.4, f), xb = lerp(pad * 0.4 - 35, w - pad * 0.4 + 35, f);
-        ctx.strokeStyle = "rgba(139,92,246,.2)"; ctx.beginPath(); ctx.moveTo(xt, base); ctx.lineTo(xb, base + floorH); ctx.stroke();
       }
 
-      cols.forEach((col, i) => {
-        const v = vals[col.key] || 0, g = t0 === null ? 0 : ease(clamp((t - t0 - i * 0.2) / 1.2, 0, 1));
-        const H = Math.max(v / 100, 0.03) * maxH * g;
-        const x = pad + i * (cw + gap), y = base - H;
-        const c = col.rgb, pulse = 0.5 + 0.5 * Math.sin(t * 1.4 + i);
+      // Draw nodes
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
 
-        /* Glow Pool */
-        const pool = ctx.createRadialGradient(x + cw / 2 + od / 2, base + 4, 2, x + cw / 2 + od / 2, base + 4, cw * 1.1);
-        pool.addColorStop(0, rgba(c, 0.32 * g)); pool.addColorStop(1, rgba(c, 0));
-        ctx.fillStyle = pool; ctx.fillRect(x - cw, base - 10, cw * 3.2, 40);
+        if (p.x < 0) p.x = width;
+        else if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height;
+        else if (p.y > height) p.y = 0;
 
-        /* Front face */
-        const fg = ctx.createLinearGradient(0, y, 0, base);
-        fg.addColorStop(0, rgba(c, 0.85)); fg.addColorStop(1, rgba(c, 0.16));
-        ctx.shadowColor = rgba(c, 0.6); ctx.shadowBlur = 18;
-        ctx.fillStyle = fg; ctx.fillRect(x, y, cw, H);
+        ctx.fillStyle = p.isGold ? "rgba(229, 193, 88, 0.75)" : "rgba(52, 211, 153, 0.75)";
+        ctx.shadowColor = p.isGold ? "rgba(212, 175, 55, 0.6)" : "rgba(16, 185, 129, 0.6)";
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
         ctx.shadowBlur = 0;
+      }
 
-        /* Side face */
-        ctx.fillStyle = rgba(c, 0.30);
-        ctx.beginPath(); ctx.moveTo(x + cw, y); ctx.lineTo(x + cw + od, y - oy); ctx.lineTo(x + cw + od, base - oy); ctx.lineTo(x + cw, base); ctx.fill();
-
-        /* Top face */
-        const L = lighten(c, 0.55);
-        ctx.fillStyle = rgba(L, 0.92);
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + od, y - oy); ctx.lineTo(x + cw + od, y - oy); ctx.lineTo(x + cw, y); ctx.fill();
-
-        /* Glass edges */
-        ctx.strokeStyle = rgba(lighten(c, 0.5), 0.55 + pulse * 0.25); ctx.lineWidth = 1;
-        ctx.strokeRect(x + 0.5, y + 0.5, cw - 1, Math.max(H - 1, 0));
-
-        /* Scan line */
-        if (g > 0.99 && H > 8) {
-          const sy = base - ((t * 0.28 + i * 0.3) % 1) * H;
-          ctx.fillStyle = rgba(L, 0.35); ctx.fillRect(x, sy, cw, 1.5);
-        }
-
-        /* Labels */
-        ctx.textAlign = "center"; ctx.fillStyle = "#fff";
-        ctx.font = "600 " + (w < 360 ? 14 : 16) + "px Sora, system-ui, sans-serif";
-        ctx.globalAlpha = g; ctx.fillText(Math.round(v * g) + "%", x + cw / 2 + od / 2, y - oy - 9); ctx.globalAlpha = 1;
-        ctx.fillStyle = "rgba(169,177,208,.9)"; ctx.font = "600 12px Manrope, system-ui, sans-serif";
-        ctx.fillText(col.label, x + cw / 2 + od / 2, base + floorH + 16);
-      });
+      requestAnimationFrame(renderParticles);
     }
 
-    function loop(now) {
-      raf = requestAnimationFrame(loop);
-      if (visible) render(now);
-    }
+    renderParticles();
+  }
 
-    function init() {
-      canvas = $("#sent-canvas");
-      if (!canvas) return;
-      ctx = canvas.getContext("2d");
-      resize();
-      if ("IntersectionObserver" in window) new IntersectionObserver((es) => es.forEach((e) => (visible = e.isIntersecting)), { rootMargin: "60px" }).observe(canvas);
-      else visible = true;
-      let rt;
-      addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { resize(); if (reduced) render(t0 * 1000 + 5000); }, 150); });
-      if (reduced) { t0 = -5; render(0); return; }
-      raf = requestAnimationFrame(loop);
-    }
+  /* --------------------------------------------------------------------------
+     12. ATTACH EVENT LISTENERS & BOOTSTRAP
+     -------------------------------------------------------------------------- */
+  function setupEventListeners() {
+    // Mobile navigation toggle
+    dom.mobileToggle.addEventListener("click", () => {
+      dom.mobileMenu.classList.toggle("is-active");
+    });
 
-    function play() { if (reduced) return; t0 = performance.now() / 1000; }
-    function setData(s, animate) {
-      vals = { positive: s.positive || 0, neutral: s.neutral || 0, negative: s.negative || 0 };
-      if (animate) play();
-      if (reduced && ctx) render(5000);
-    }
-    return { init, play, setData };
-  })();
+    $$("#mobile-menu .nav-item").forEach((link) => {
+      link.addEventListener("click", () => dom.mobileMenu.classList.remove("is-active"));
+    });
 
-  /* ------------------------------------------------------
-     8. HERO 3D SCENE (Three.js Animated N Logo & Neural Net)
-     ------------------------------------------------------ */
-  const Scene3D = (() => {
-    function init({ onFirstFrame }) {
-      const fail = () => { root.classList.add("no-gl"); return false; };
-      if (typeof THREE === "undefined") return fail();
+    // File Input & Drag and Drop
+    dom.browseBtn.addEventListener("click", () => dom.fileInput.click());
+    dom.fileInput.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFileSelected(e.target.files[0]);
+      }
+    });
 
-      const canvas = $("#gl"), stage = $("#logo-anchor");
-      if (!canvas || !stage) return fail();
+    dom.dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dom.dropZone.classList.add("is-dragover");
+    });
 
-      const W0 = innerWidth;
-      const lowPower = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
-      let tier = W0 < 720 ? "low" : (W0 < 1100 || lowPower) ? "mid" : "high";
+    dom.dropZone.addEventListener("dragleave", () => {
+      dom.dropZone.classList.remove("is-dragover");
+    });
 
-      let renderer;
+    dom.dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dom.dropZone.classList.remove("is-dragover");
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFileSelected(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Clear File
+    dom.clearFileBtn.addEventListener("click", () => {
+      state.file = null;
+      state.csv = null;
+      dom.fileInput.value = "";
+      dom.fileInspector.classList.remove("is-visible");
+      if (dom.telemetryStatus) dom.telemetryStatus.textContent = "Real-Time Insights";
+    });
+
+    // Analyze Action
+    dom.analyzeBtn.addEventListener("click", () => {
+      if (state.file) analyzeDataset(state.file);
+      else showToast("Please select a CSV file first.", "error");
+    });
+
+    // Demo Data Actions
+    const handleDemo = async () => {
+      showToast("Loading sample customer reviews...");
       try {
-        renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: tier === "high", powerPreference: tier === "high" ? "high-performance" : "default" });
-      } catch (e) { return fail(); }
-
-      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, tier === "high" ? 1.75 : 1.25));
-      renderer.outputEncoding = THREE.sRGBEncoding;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.12;
-      renderer.setClearColor(0x000000, 0);
-
-      let shadows = tier === "high";
-      if (shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
-
-      const NODE_N = tier === "high" ? 84 : tier === "mid" ? 56 : 34;
-      const PACK_N = tier === "high" ? 20 : tier === "mid" ? 14 : 9;
-      const BG_N   = tier === "high" ? 320 : tier === "mid" ? 200 : 110;
-
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
-      camera.position.set(0, 0, 16);
-
-      /* Environment Map */
-      (function makeEnv() {
-        try {
-          const env = new THREE.Scene();
-          const c = document.createElement("canvas"); c.width = 4; c.height = 256;
-          const g = c.getContext("2d"), grad = g.createLinearGradient(0, 0, 0, 256);
-          grad.addColorStop(0, "#0b0a24"); grad.addColorStop(0.5, "#14102f"); grad.addColorStop(1, "#050711");
-          g.fillStyle = grad; g.fillRect(0, 0, 4, 256);
-          const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
-          env.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide })));
-          const box = (hex, k, w, h, x, y, z) => {
-            const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(k), side: THREE.DoubleSide }));
-            m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m);
-          };
-          box(0x8b5cf6, 7, 26, 14, -26, 12, 14);
-          box(0xffffff, 6, 40, 3, 0, 32, 4);
-          box(0x3b82f6, 6, 18, 26, 30, 4, -18);
-          box(0x6d28d9, 5, 40, 8, 0, -30, 12);
-          box(0xbfdbfe, 4, 6, 24, 24, 6, 22);
-          const pm = new THREE.PMREMGenerator(renderer);
-          scene.environment = pm.fromScene(env, 0.02).texture;
-          pm.dispose();
-        } catch (err) { console.warn('Environment map unavailable', err); }
-      })();
-
-      const hero = new THREE.Group(); scene.add(hero);
-      const logoPivot = new THREE.Group(); logoPivot.scale.setScalar(1.25); hero.add(logoPivot);
-      const logo = new THREE.Group(); logoPivot.add(logo);
-
-      const fades = [];
-      const reg = (m, base = 1, always = false) => { fades.push({ m, base, always }); return m; };
-      const setOp = (e, v) => {
-        const o = e.base * v;
-        if (!e.always) { const tr = o < 0.999; if (e.m.transparent !== tr) { e.m.transparent = tr; e.m.needsUpdate = true; } }
-        e.m.opacity = o;
-      };
-
-      /* Extruded N Geometry */
-      const D = 0.75, BEV = 0.09;
-      const rect = (x0, x1) => { const s = new THREE.Shape(); s.moveTo(x0, 0); s.lineTo(x1, 0); s.lineTo(x1, 4); s.lineTo(x0, 4); s.closePath(); return s; };
-      const poly = (pts) => { const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach((p) => s.lineTo(p[0], p[1])); s.closePath(); return s; };
-      const stemOpts = { depth: D, bevelEnabled: true, bevelThickness: BEV, bevelSize: 0.06, bevelSegments: 3, curveSegments: 4 };
-      const stemL = new THREE.ExtrudeGeometry(rect(0, 0.85), stemOpts);
-      const stemR = new THREE.ExtrudeGeometry(rect(2.15, 3), stemOpts);
-      [stemL, stemR].forEach((g) => g.translate(-1.5, -2, -D / 2));
-      const diagPts = [[0.85, 2.3], [2.15, 0], [2.15, 1.7], [0.85, 4]];
-      const diag = new THREE.ExtrudeGeometry(poly(diagPts), { depth: 0.46, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.03, bevelSegments: 2 });
-      diag.translate(-1.5, -2, -0.23);
-
-      const metal = tier === "low"
-        ? new THREE.MeshStandardMaterial({ color: 0x17122f, metalness: 0.9, roughness: 0.3 })
-        : new THREE.MeshPhysicalMaterial({ color: 0x151129, metalness: 0.92, roughness: 0.24, clearcoat: 0.7, clearcoatRoughness: 0.18 });
-      metal.envMapIntensity = 1.25; metal.emissive = new THREE.Color(0x2a1066); metal.emissiveIntensity = 0.12;
-      metal.polygonOffset = true; metal.polygonOffsetFactor = 1; metal.polygonOffsetUnits = 1;
-      reg(metal, 1);
-
-      const glass = tier === "low"
-        ? new THREE.MeshStandardMaterial({ color: 0x7c6cff, metalness: 0.2, roughness: 0.08, transparent: true, opacity: 0.34 })
-        : new THREE.MeshPhysicalMaterial({ color: 0x7c6cff, metalness: 0.05, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.05, transparent: true, opacity: 0.34 });
-      glass.envMapIntensity = 1.8; glass.emissive = new THREE.Color(0x3b2a9a); glass.emissiveIntensity = 0.25;
-      glass.depthWrite = false; glass.polygonOffset = true; glass.polygonOffsetFactor = 1; glass.polygonOffsetUnits = 1;
-      reg(glass, 0.34, true);
-
-      const mk = (geo, mat, ro = 0) => { const m = new THREE.Mesh(geo, mat); m.castShadow = shadows; m.renderOrder = ro; logo.add(m); return m; };
-      mk(stemL, metal); mk(stemR, metal); mk(diag, glass, 1);
-
-      /* Edge Lines */
-      const edgeV = reg(new THREE.LineBasicMaterial({ color: 0xa78bfa, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), 0.9, true);
-      const edgeB = reg(new THREE.LineBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), 0.8, true);
-      [stemL, stemR].forEach((g) => logo.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 40), edgeV)));
-      logo.add(new THREE.LineSegments(new THREE.EdgesGeometry(diag, 40), edgeB));
-
-      /* Shaders */
-      const VERT = "varying vec2 vP; void main(){ vP=position.xy; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }";
-      const FRAG_E = [
-        "precision highp float; uniform float uTime,uHover,uAlpha,uDir; uniform vec3 uA,uB; varying vec2 vP;",
-        "void main(){",
-        " float sp=0.22+uHover*0.38;",
-        " float f=fract(vP.y*uDir*0.42-uTime*sp);",
-        " float pulse=pow(max(0.0,1.0-abs(f-0.5)*2.0),5.0);",
-        " float fine=0.5+0.5*sin(vP.y*26.0*uDir-uTime*2.4);",
-        " float a=(0.20+pulse*(0.85+uHover*0.7)+fine*0.12)*uAlpha;",
-        " vec3 col=mix(uA,uB,clamp(pulse+uHover*0.25,0.0,1.0));",
-        " gl_FragColor=vec4(col,a);",
-        "}",
-      ].join("\n");
-
-      const FRAG_H = [
-        "precision highp float; uniform float uTime,uHover,uAlpha,uReveal; varying vec2 vP;",
-        "void main(){",
-        " float y=(vP.y+2.0)/4.0;",
-        " float pos=fract(uTime*0.16);",
-        " float band=exp(-pow((y-pos)*14.0,2.0));",
-        " float lines=0.5+0.5*sin(y*190.0-uTime*4.0);",
-        " float mask=1.0-smoothstep(uReveal-0.10,uReveal,y);",
-        " float front=exp(-pow((y-uReveal)*26.0,2.0))*0.7;",
-        " float a=((band*0.7+lines*0.10)*(0.07+uHover*0.85)*mask+front)*uAlpha;",
-        " vec3 col=mix(vec3(0.55,0.36,0.98),vec3(0.35,0.85,1.0),clamp(y+0.25*sin(uTime*0.6+y*4.0),0.0,1.0));",
-        " gl_FragColor=vec4(col,a);",
-        "}",
-      ].join("\n");
-
-      const shader = (frag, uniforms) => new THREE.ShaderMaterial({
-        vertexShader: VERT, fragmentShader: frag, uniforms, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-      });
-      const U = () => ({ uTime: { value: 0 }, uHover: { value: 0 }, uAlpha: { value: 0 } });
-      const mkEnergy = (dir) => {
-        const u = U(); u.uDir = { value: dir }; u.uA = { value: new THREE.Color(0.55, 0.36, 0.98) }; u.uB = { value: new THREE.Color(0.55, 0.9, 1.0) };
-        return shader(FRAG_E, u);
-      };
-      const eUp = mkEnergy(1), eDown = mkEnergy(-1);
-
-      const zF = D / 2 + BEV + 0.006;
-      [-1.075, 1.075].forEach((x) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 3.4), eUp); m.position.set(x, 0, zF); m.renderOrder = 3; logo.add(m); });
-      const insetPts = diagPts.map((p) => [1.5 + (p[0] - 1.5) * 0.7, 2 + (p[1] - 2) * 0.82]);
-      const chan = new THREE.ShapeGeometry(poly(insetPts)); chan.translate(-1.5, -2, 0);
-      const chanMesh = new THREE.Mesh(chan, eDown); chanMesh.renderOrder = 3; logo.add(chanMesh);
-
-      const holoU = U(); holoU.uReveal = { value: 0 };
-      const holo = shader(FRAG_H, holoU);
-      const nShape = poly([[0, 0], [0.85, 0], [0.85, 2.3], [2.15, 0], [3, 0], [3, 4], [2.15, 4], [2.15, 1.7], [0.85, 4], [0, 4]]);
-      const holoGeo = new THREE.ShapeGeometry(nShape); holoGeo.translate(-1.5, -2, 0);
-      const holoMesh = new THREE.Mesh(holoGeo, holo); holoMesh.position.z = zF + 0.02; holoMesh.renderOrder = 4; logo.add(holoMesh);
-
-      /* Lights */
-      scene.add(new THREE.AmbientLight(0x1a1442, 0.7));
-      const key = new THREE.DirectionalLight(0xdcd2ff, 1.15); key.position.set(4, 6, 8); hero.add(key, key.target);
-      if (shadows) { key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0006; key.shadow.radius = 5; }
-      const rim = new THREE.PointLight(0x8b5cf6, 2.4, 0, 1); rim.position.set(5, 2, -4); hero.add(rim);
-      const fill = new THREE.PointLight(0x3b82f6, 1.5, 0, 1); fill.position.set(-6, -1, 4); hero.add(fill);
-      let shadowPlane = null;
-      if (shadows) {
-        shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(40, 30), new THREE.ShadowMaterial({ opacity: 0.45 }));
-        shadowPlane.position.z = -2.4; shadowPlane.receiveShadow = true; hero.add(shadowPlane);
-      }
-
-      /* Neural Net Group */
-      const net = new THREE.Group(); hero.add(net);
-      const sprite = (() => {
-        const c = document.createElement("canvas"); c.width = c.height = 64;
-        const g = c.getContext("2d"), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-        r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.28, "rgba(255,255,255,.55)"); r.addColorStop(1, "rgba(255,255,255,0)");
-        g.fillStyle = r; g.fillRect(0, 0, 64, 64);
-        return new THREE.CanvasTexture(c);
-      })();
-      const pointMats = [];
-      const mkPoints = (size, opacity, scaled) => {
-        const m = new THREE.PointsMaterial({ size, map: sprite, vertexColors: true, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true, toneMapped: false });
-        if (scaled) pointMats.push([m, size]);
-        return m;
-      };
-
-      const base = [];
-      while (base.length < NODE_N) {
-        const x = (Math.random() * 2 - 1) * 8, y = (Math.random() * 2 - 1) * 5, z = (Math.random() * 2 - 1) * 3;
-        if (Math.abs(x) < 2.9 && Math.abs(y) < 3.3 && Math.abs(z) < 1.8) continue;
-        base.push({ x, y, z, p: Math.random() * 6.283 });
-      }
-      const nodePos = new Float32Array(NODE_N * 3), nodeCol = new Float32Array(NODE_N * 3);
-      base.forEach((n, i) => {
-        const f = (n.x + 8) / 16, c = f < 0.4 ? [0.62, 0.74, 0.95] : f < 0.62 ? [0.52, 0.38, 0.95] : [0.28, 0.62, 0.98];
-        const d = 0.5 + Math.random() * 0.4;
-        nodeCol.set([c[0] * d, c[1] * d, c[2] * d], i * 3);
-      });
-      const nodeGeo = new THREE.BufferGeometry();
-      nodeGeo.setAttribute("position", new THREE.BufferAttribute(nodePos, 3));
-      nodeGeo.setAttribute("color", new THREE.BufferAttribute(nodeCol, 3));
-      const nodeMat = reg(mkPoints(0.3, 0.9, true), 0.9, true);
-      net.add(new THREE.Points(nodeGeo, nodeMat));
-
-      const edges = [], adj = Array.from({ length: NODE_N }, () => []), seen = new Set();
-      base.forEach((a, i) => {
-        base.map((b, j) => ({ j, d: Math.hypot(a.x - b.x, a.y - b.y, (a.z - b.z) * 1.4) }))
-          .filter((o) => o.j !== i && o.d < 3.7).sort((p, q) => p.d - q.d).slice(0, 2)
-          .forEach((o) => {
-            const k = Math.min(i, o.j) + "-" + Math.max(i, o.j);
-            if (seen.has(k)) return; seen.add(k);
-            adj[i].push(edges.length); adj[o.j].push(edges.length); edges.push([i, o.j]);
-          });
-      });
-      const E = edges.length, edgePos = new Float32Array(E * 6), edgeCol = new Float32Array(E * 6), pulse = new Float32Array(E);
-      const lineGeo = new THREE.BufferGeometry();
-      lineGeo.setAttribute("position", new THREE.BufferAttribute(edgePos, 3));
-      lineGeo.setAttribute("color", new THREE.BufferAttribute(edgeCol, 3));
-      const lineMat = reg(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), 0.9, true);
-      net.add(new THREE.LineSegments(lineGeo, lineMat));
-      const pending = [];
-
-      /* Data Packets */
-      const rnd = (a, b) => a + Math.random() * (b - a);
-      const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
-      const makeCurves = () => {
-        const y0 = rnd(-4, 4), z0 = rnd(-2.4, 2.4), ey = rnd(-1.6, 1.6), ey2 = rnd(-1.6, 1.6), y1 = rnd(-4, 4), z1 = rnd(-2.4, 2.4);
-        return {
-          A: new THREE.CatmullRomCurve3([V3(rnd(-8.2, -6.4), y0, z0), V3(-4.6, y0 * 0.55 + rnd(-0.8, 0.8), z0 * 0.5), V3(-2.3, ey, 0.2), V3(-0.4, ey, 0)]),
-          B: new THREE.CatmullRomCurve3([V3(0.4, ey2, 0), V3(2.3, ey2 + rnd(-0.6, 0.6), 0.2), V3(4.8, y1 * 0.6, z1 * 0.5), V3(rnd(6.4, 8.2), y1, z1)]),
-        };
-      };
-      const packets = Array.from({ length: PACK_N }, () => ({ u: Math.random(), v: rnd(0.07, 0.12), ...makeCurves(), prev: 0 }));
-      const TRAIL = 3, packPos = new Float32Array(PACK_N * TRAIL * 3), packCol = new Float32Array(PACK_N * TRAIL * 3);
-      const packGeo = new THREE.BufferGeometry();
-      packGeo.setAttribute("position", new THREE.BufferAttribute(packPos, 3));
-      packGeo.setAttribute("color", new THREE.BufferAttribute(packCol, 3));
-      const packMat = reg(mkPoints(0.44, 1, true), 1, true);
-      net.add(new THREE.Points(packGeo, packMat));
-
-      const streamMat = reg(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), 0.2, true);
-      for (let k = 0; k < 6; k++) {
-        const cv = makeCurves(), curve = k < 3 ? cv.A : cv.B, n = 36, p = new Float32Array(n * 3), c = new Float32Array(n * 3);
-        for (let i = 0; i < n; i++) {
-          const pt = curve.getPoint(i / (n - 1)); p.set([pt.x, pt.y, pt.z], i * 3);
-          const f = k < 3 ? i / (n - 1) : 1 - i / (n - 1), col = k < 3 ? [0.6, 0.7, 1] : [0.3, 0.7, 1];
-          c.set([col[0] * f, col[1] * f, col[2] * f], i * 3);
-        }
-        const g = new THREE.BufferGeometry();
-        g.setAttribute("position", new THREE.BufferAttribute(p, 3)); g.setAttribute("color", new THREE.BufferAttribute(c, 3));
-        net.add(new THREE.Line(g, streamMat));
-      }
-
-      /* Ambient Particles */
-      const bg = new THREE.Group(); scene.add(bg);
-      const bgPos = new Float32Array(BG_N * 3), bgCol = new Float32Array(BG_N * 3), bgVel = new Float32Array(BG_N * 3);
-      const pal = [[0.55, 0.36, 0.96], [0.55, 0.36, 0.96], [0.22, 0.5, 0.97], [0.22, 0.72, 0.97], [0.85, 0.88, 1]];
-      for (let i = 0; i < BG_N; i++) {
-        const i3 = i * 3;
-        bgPos[i3] = rnd(-32, 32); bgPos[i3 + 1] = rnd(-22, 22); bgPos[i3 + 2] = rnd(-30, 6);
-        const c = pal[(Math.random() * pal.length) | 0], d = 0.4 + Math.random() * 0.5;
-        bgCol.set([c[0] * d, c[1] * d, c[2] * d], i3);
-        bgVel[i3] = rnd(-0.12, 0.12); bgVel[i3 + 1] = rnd(0.05, 0.22); bgVel[i3 + 2] = rnd(-0.05, 0.05);
-      }
-      const bgGeo = new THREE.BufferGeometry();
-      bgGeo.setAttribute("position", new THREE.BufferAttribute(bgPos, 3)); bgGeo.setAttribute("color", new THREE.BufferAttribute(bgCol, 3));
-      const bgMat = new THREE.PointsMaterial({ size: tier === "low" ? 0.34 : 0.26, map: sprite, vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true, toneMapped: false });
-      bg.add(new THREE.Points(bgGeo, bgMat));
-
-      let W = 1, H = 1, wpp = 0.01, s = 0.7, lastShadowS = 0;
-      let stageLeft = 0, stageTop = 0, stageWidth = 0, stageHeight = 0;
-
-      function layout() {
-        W = innerWidth; H = innerHeight;
-        renderer.setSize(W, H, false);
-        camera.aspect = W / H; camera.updateProjectionMatrix();
-        wpp = (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z) / H;
-
-        const box = stage.getBoundingClientRect();
-        stageLeft = box.left;
-        stageTop = box.top + window.scrollY;
-        stageWidth = box.width;
-        stageHeight = box.height;
-      }
-
-      let fadeScroll = 1;
-      function place() {
-        const sy = window.scrollY;
-        const curTop = stageTop - sy;
-        const curBottom = curTop + stageHeight;
-
-        hero.position.set((stageLeft + stageWidth / 2 - W / 2) * wpp, -(curTop + stageHeight / 2 - H / 2) * wpp, 0);
-        s = (stageHeight * wpp) / 10;
-        hero.scale.setScalar(s);
-        net.scale.x = clamp(stageWidth / stageHeight / 1.6, 0.6, 1.4);
-        fadeScroll = clamp((curBottom - 40) / (stageHeight * 0.5), 0, 1);
-        hero.visible = fadeScroll > 0.002 && curTop < H + 60;
-        pointMats.forEach(([m, b]) => (m.size = b * s));
-        if (shadows && Math.abs(s - lastShadowS) > 0.01) {
-          const cam = key.shadow.camera; cam.left = -7 * s; cam.right = 7 * s; cam.top = 7 * s; cam.bottom = -7 * s; cam.near = 1 * s; cam.far = 26 * s;
-          cam.updateProjectionMatrix(); lastShadowS = s;
-        }
-        bg.position.y = sy * wpp * 0.22;
-      }
-
-      let hoverTarget = 0, hoverT = 0, tapTimer = 0;
-      stage.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hoverTarget = 1; });
-      stage.addEventListener("pointerleave", () => { hoverTarget = 0; });
-      stage.addEventListener("pointerdown", (e) => {
-        if (e.pointerType === "mouse") return;
-        hoverTarget = 1; clearTimeout(tapTimer); tapTimer = setTimeout(() => (hoverTarget = 0), 1600);
-      });
-
-      const tmp = new THREE.Vector3(), colA = new THREE.Color(0xa78bfa), colB = new THREE.Color(0xe9e2ff);
-      const timeU = [eUp, eDown, holo];
-      let time = 0, introT = reduced ? 10 : 0, boost = 0, nextPulse = 0.6, fpsAcc = 0, fpsN = 0, firstDone = false, running = true, last = 0;
-
-      function step(dt) {
-        time += dt; introT += dt;
-        place();
-
-        // If hero is offscreen, skip heavy 3D calculations and draw calls
-        if (!hero.visible && fadeScroll <= 0.002) {
+        const res = await fetch("/sample_reviews_real.csv");
+        if (res.ok) {
+          const blob = await res.blob();
+          const file = new File([blob], "sample_reviews_real.csv", { type: "text/csv" });
+          handleFileSelected(file);
+          await analyzeDataset(file);
           return;
         }
+      } catch (_) {}
+      // Fallback
+      analyzeDataset(null);
+    };
 
-        const pI = ease(clamp(introT / 1.1, 0, 1));
-        const lI = ease(clamp((introT - 0.35) / 1.25, 0, 1));
-        const flash = reduced ? 0 : Math.max(0, 1 - Math.abs(introT - 1.35) / 0.45) * 0.9;
-        hoverT += (hoverTarget - hoverT) * (1 - Math.exp(-dt * 5));
-        boost = Math.max(0, boost - dt * 0.9);
-        const energy = clamp(Math.max(hoverT, boost * 0.5, flash), 0, 1.3);
+    dom.demoBtn.addEventListener("click", handleDemo);
+    dom.heroDemoBtn.addEventListener("click", handleDemo);
 
-        logo.position.y = Math.sin(time * 0.9) * 0.12;
-        logo.rotation.y = 0.26 + Math.sin(time * 0.24) * 0.2 + hoverT * 0.24;
-        logo.rotation.x = Math.sin(time * 0.2) * 0.05 - hoverT * 0.06;
-        logoPivot.scale.setScalar(1.25 * (0.9 + 0.1 * lI));
+    // URL Import Toggle & Submit
+    dom.urlToggleBtn.addEventListener("click", () => {
+      dom.urlPanel.classList.toggle("is-open");
+      if (dom.urlPanel.classList.contains("is-open")) dom.urlInput.focus();
+    });
 
-        timeU.forEach((m) => { m.uniforms.uTime.value = time; m.uniforms.uHover.value = energy; m.uniforms.uAlpha.value = lI * fadeScroll; });
-        holo.uniforms.uReveal.value = reduced ? 1.3 : clamp((introT - 0.3) / 1.1, 0, 1) * 1.25;
-        rim.intensity = 2.4 * (1 + hoverT * 1.3) + flash * 3;
-        fill.intensity = 1.5 * (1 + hoverT * 0.5);
-        metal.emissiveIntensity = 0.12 + hoverT * 0.35 + boost * 0.15 + flash * 0.4;
-        glass.emissiveIntensity = 0.25 + hoverT * 0.5 + boost * 0.2;
-        edgeV.color.copy(colA).lerp(colB, hoverT * 0.7 + flash * 0.5);
-
-        fades.forEach((e) => {
-          const isNet = e.m === nodeMat || e.m === lineMat || e.m === packMat || e.m === streamMat;
-          setOp(e, (isNet ? pI : lI) * fadeScroll);
-        });
-        bgMat.opacity = 0.7 * pI;
-
-        for (let i = 0; i < NODE_N; i++) {
-          const n = base[i], ph = n.p;
-          nodePos[i * 3]     = n.x + Math.sin(time * 0.25 + ph) * 0.24;
-          nodePos[i * 3 + 1] = n.y + Math.sin(time * 0.21 + ph * 1.7) * 0.24;
-          nodePos[i * 3 + 2] = n.z + Math.sin(time * 0.18 + ph * 2.3) * 0.2;
-        }
-        nodeGeo.attributes.position.needsUpdate = true;
-
-        if (!reduced) {
-          nextPulse -= dt;
-          if (nextPulse <= 0 && E) {
-            nextPulse = rnd(0.9, 2);
-            let node = (Math.random() * NODE_N) | 0;
-            for (let k = 0; k < 4; k++) {
-              if (!adj[node].length) break;
-              const ei = adj[node][(Math.random() * adj[node].length) | 0];
-              pending.push({ t: time + k * 0.2, e: ei });
-              node = edges[ei][0] === node ? edges[ei][1] : edges[ei][0];
-            }
-          }
-          for (let i = pending.length - 1; i >= 0; i--) if (pending[i].t <= time) { pulse[pending[i].e] = 1; pending.splice(i, 1); }
-        }
-        for (let e = 0; e < E; e++) {
-          const [a, b] = edges[e]; pulse[e] = Math.max(0, pulse[e] - dt * 0.9);
-          const o = e * 6, k = 0.11 + pulse[e] * 0.85;
-          edgePos[o] = nodePos[a * 3]; edgePos[o + 1] = nodePos[a * 3 + 1]; edgePos[o + 2] = nodePos[a * 3 + 2];
-          edgePos[o + 3] = nodePos[b * 3]; edgePos[o + 4] = nodePos[b * 3 + 1]; edgePos[o + 5] = nodePos[b * 3 + 2];
-          const r = 0.45 * k, g = 0.38 * k + pulse[e] * 0.2, bl = 0.95 * k;
-          edgeCol[o] = r; edgeCol[o + 1] = g; edgeCol[o + 2] = bl; edgeCol[o + 3] = r; edgeCol[o + 4] = g; edgeCol[o + 5] = bl;
-        }
-        if (E) { lineGeo.attributes.position.needsUpdate = true; lineGeo.attributes.color.needsUpdate = true; }
-
-        packets.forEach((p, i) => {
-          p.prev = p.u; p.u += dt * p.v * (reduced ? 0 : 1);
-          if (p.prev < 0.5 && p.u >= 0.5) boost = Math.min(1, boost + 0.2);
-          if (p.u >= 1) { p.u = 0; p.prev = 0; Object.assign(p, makeCurves()); }
-          for (let t = 0; t < TRAIL; t++) {
-            const u = clamp(p.u - t * 0.014, 0, 0.9999), idx = (i * TRAIL + t) * 3;
-            if (u < 0.5) p.A.getPoint(u * 2, tmp); else p.B.getPoint((u - 0.5) * 2, tmp);
-            packPos[idx] = tmp.x; packPos[idx + 1] = tmp.y; packPos[idx + 2] = tmp.z;
-            const q = u < 0.5 ? u * 2 : (u - 0.5) * 2, br = [1, 0.5, 0.24][t];
-            const c = u < 0.5 ? [lerp(0.8, 0.62, q), lerp(0.88, 0.42, q), 1] : [lerp(0.62, 0.3, q), lerp(0.42, 0.75, q), 1];
-            packCol[idx] = c[0] * br; packCol[idx + 1] = c[1] * br; packCol[idx + 2] = c[2] * br;
-          }
-        });
-        packGeo.attributes.position.needsUpdate = true; packGeo.attributes.color.needsUpdate = true;
-
-        for (let i = 0; i < BG_N; i++) {
-          const i3 = i * 3;
-          bgPos[i3] += bgVel[i3] * dt; bgPos[i3 + 1] += bgVel[i3 + 1] * dt; bgPos[i3 + 2] += bgVel[i3 + 2] * dt;
-          if (bgPos[i3 + 1] > 22) bgPos[i3 + 1] = -22;
-          if (bgPos[i3] > 32) bgPos[i3] = -32; else if (bgPos[i3] < -32) bgPos[i3] = 32;
-        }
-        bgGeo.attributes.position.needsUpdate = true;
-        bg.rotation.y = Math.sin(time * 0.05) * 0.03;
-
-        renderer.render(scene, camera);
-        if (!firstDone) { firstDone = true; onFirstFrame && onFirstFrame(); }
+    dom.urlSubmitBtn.addEventListener("click", submitUrlImport);
+    dom.urlInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitUrlImport();
       }
+    });
 
-      function loop(now) {
-        if (!running) return;
-        requestAnimationFrame(loop);
-        const dt = Math.min((now - last) / 1000, 0.05); last = now;
-        step(dt);
-      }
+    // Ask AI Form & Prompt Chips
+    dom.askForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      submitQuestion();
+    });
 
-      layout();
-      addEventListener("resize", () => { layout(); if (reduced) step(0); });
-      if (reduced) {
-        let q = 0; const once = () => { if (!q) q = requestAnimationFrame(() => { q = 0; step(0); }); };
-        addEventListener("scroll", once, { passive: true }); addEventListener("resize", once);
-        step(0);
-      } else {
-        requestAnimationFrame((n) => { last = n; requestAnimationFrame(loop); });
-        document.addEventListener("visibilitychange", () => {
-          if (document.hidden) running = false;
-          else if (!running) { running = true; requestAnimationFrame((n) => { last = n; loop(n); }); }
-        });
-      }
-      return true;
-    }
-    return { init };
-  })();
-
-  /* ------------------------------------------------------
-     9. BOOT & INITIALIZATION
-     ------------------------------------------------------ */
-  let readied = false;
-  function ready() {
-    if (readied) return;
-    readied = true;
-    document.body.classList.add("is-ready");
-  }
-
-  function boot() {
-    // Ultra-smooth momentum scroll via Lenis
-    if (typeof Lenis !== "undefined" && !reduced) {
-      const lenis = new Lenis({
-        autoRaf: true,
-        smoothWheel: true,
-        wheelMultiplier: 0.95,
-        touchMultiplier: 1.2,
-        lerp: 0.08,
+    $$(".prompt-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const q = chip.getAttribute("data-question");
+        dom.askInput.value = q;
+        submitQuestion(q);
       });
-      window.lenis = lenis;
+    });
 
-      $$('a[href^="#"]').forEach((a) => {
-        a.addEventListener("click", (e) => {
-          const href = a.getAttribute("href");
-          if (!href) return;
-          if (href === "#top" || href === "#") {
-            e.preventDefault();
-            lenis.scrollTo(0, { duration: 1.2 });
-          } else {
-            const target = $(href);
-            if (target) {
-              e.preventDefault();
-              lenis.scrollTo(target, { offset: -70, duration: 1.2 });
-            }
-          }
-        });
+    // Copy Buttons
+    dom.copySummaryBtn.addEventListener("click", () => {
+      const text = dom.summaryText.textContent;
+      navigator.clipboard.writeText(text).then(() => showToast("Executive Summary copied to clipboard!"));
+    });
+
+    dom.copyAnswerBtn.addEventListener("click", () => {
+      const text = dom.qaAnswerBody.textContent;
+      navigator.clipboard.writeText(text).then(() => showToast("AI response copied to clipboard!"));
+    });
+
+    // Review Filters & Search
+    dom.filterBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        dom.filterBtns.forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        state.activeFilter = btn.getAttribute("data-filter");
+        state.currentPage = 1;
+        applyFiltersAndPagination();
       });
-    }
+    });
 
-    bindEvents();
-    initReveal();
-    initTilt();
-    MiniViz.init();
-    SentimentViz.init();
+    dom.reviewSearchInput.addEventListener("input", (e) => {
+      state.searchQuery = e.target.value.trim();
+      state.currentPage = 1;
+      applyFiltersAndPagination();
+    });
 
-    // Default mock load taake page start me blank na dikhe
-    updateDashboard(MOCK_ANALYSIS);
-    displayReviews(MOCK_ANALYSIS.reviews);
+    dom.sortSelect.addEventListener("change", (e) => {
+      state.sortOrder = e.target.value;
+      state.currentPage = 1;
+      applyFiltersAndPagination();
+    });
 
-    if (els.ctaAnalyze && els.choose) {
-      els.ctaAnalyze.addEventListener("click", () => setTimeout(() => els.choose.focus({ preventScroll: true }), 700));
-    }
+    dom.pagePrevBtn.addEventListener("click", () => {
+      if (state.currentPage > 1) {
+        state.currentPage--;
+        applyFiltersAndPagination();
+      }
+    });
 
-    let ok = false;
-    try {
-      ok = Scene3D.init({ onFirstFrame: ready });
-    } catch (e) {
-      console.error(e);
-      root.classList.add("no-gl");
-    }
-    if (!ok) ready();
-    setTimeout(ready, 2000); // Safety fallback to reveal hero elements
+    dom.pageNextBtn.addEventListener("click", () => {
+      state.currentPage++;
+      applyFiltersAndPagination();
+    });
+
+    // Deliverable Exports
+    dom.exportJsonBtn.addEventListener("click", exportAsJSON);
+    dom.exportMdBtn.addEventListener("click", exportAsMarkdown);
+    dom.resetBtn.addEventListener("click", resetWorkspace);
   }
 
-  window.NeuroForge = {
-    CONFIG,
-    uploadReviews,
-    analyzeReviews,
-    askAI,
-    updateDashboard,
-    displayReviews,
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
+  // Application Initialize
+  document.addEventListener("DOMContentLoaded", () => {
+    initAmbientCanvas();
+    initArtwork3DTilt();
+    initAuthModal();
+    setupEventListeners();
+    checkBackendHealth();
+  });
 })();
