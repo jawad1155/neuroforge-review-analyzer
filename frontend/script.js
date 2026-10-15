@@ -133,6 +133,13 @@
     navUserLabel: $("#nav-user-label"),
     telemetryStatus: $("#telemetry-dataset-status"),
     artworkCard: $("#artwork-card"),
+    cardHeroPosVal: $("#card-hero-pos-val"),
+    cardHeroPosQuote: $("#card-hero-pos-quote"),
+    cardHeroRatingVal: $("#card-hero-rating-val"),
+    cardHeroInsightSub: $("#card-hero-insight-sub"),
+    stripDemoBtn: $("#strip-demo-btn"),
+    heroReviewsBtn: $("#hero-cta-reviews"),
+    heroDashboardBtn: $("#hero-cta-dashboard"),
 
     // Upload & Ingestion
     fileInput: $("#csv-file-input"),
@@ -575,6 +582,21 @@
 
     // Review Explorer
     dom.reviewCountBadge.textContent = `${totalReviews.toLocaleString()} Reviews`;
+
+    // Dynamic Live Update for Hero 3D Card Badges
+    if (dom.cardHeroPosVal) {
+      dom.cardHeroPosVal.innerHTML = `${Math.round(sentiment.positive)}% <span class="badge-sub-label">Positive Sentiment</span>`;
+    }
+    if (dom.cardHeroPosQuote && data.common_praise && data.common_praise.length > 0) {
+      dom.cardHeroPosQuote.textContent = `"${data.common_praise[0]}"`;
+    }
+    if (dom.cardHeroInsightSub && data.common_complaints && data.common_complaints.length > 0) {
+      dom.cardHeroInsightSub.textContent = `"${data.common_complaints[0]}"`;
+    }
+    if (dom.telemetryStatus) {
+      dom.telemetryStatus.textContent = `${totalReviews} Reviews Ready`;
+    }
+
     applyFiltersAndPagination();
   }
 
@@ -637,6 +659,9 @@
     }
 
     dom.valAvgRating.textContent = `${avg > 0 ? avg.toFixed(1) : "—"} / 5`;
+    if (dom.cardHeroRatingVal && avg > 0) {
+      dom.cardHeroRatingVal.innerHTML = `${avg.toFixed(1)} / 5.0 <span class="badge-sub-label">Rating</span>`;
+    }
 
     dom.ratingBars.forEach((barItem, idx) => {
       const star = String(5 - idx);
@@ -1244,6 +1269,8 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
     const saved = localStorage.getItem("neuroforge_user");
     if (saved) {
       dom.navUserLabel.textContent = saved.includes("@") ? saved.split("@")[0] : saved;
+    } else {
+      dom.navUserLabel.textContent = "jawad52852";
     }
   }
 
@@ -1384,22 +1411,51 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
     // Demo Data Actions
     const handleDemo = async () => {
       showToast("Loading sample customer reviews...");
-      try {
-        const res = await fetch("/sample_reviews_real.csv");
-        if (res.ok) {
-          const blob = await res.blob();
-          const file = new File([blob], "sample_reviews_real.csv", { type: "text/csv" });
-          handleFileSelected(file);
-          await analyzeDataset(file);
-          return;
-        }
-      } catch (_) {}
+      const candidatePaths = [
+        "sample_reviews_real.csv",
+        "/sample_reviews_real.csv",
+        "/frontend/sample_reviews_real.csv",
+        `${CONFIG.API_BASE}/sample_reviews_real.csv`,
+        `${CONFIG.API_BASE}/frontend/sample_reviews_real.csv`,
+      ];
+
+      for (const p of candidatePaths) {
+        try {
+          const res = await fetch(p);
+          if (res.ok) {
+            const blob = await res.blob();
+            if (blob.size > 50) {
+              const file = new File([blob], "sample_reviews_real.csv", { type: "text/csv" });
+              handleFileSelected(file);
+              await analyzeDataset(file);
+              return;
+            }
+          }
+        } catch (_) {}
+      }
       // Fallback
       analyzeDataset(null);
     };
 
-    dom.demoBtn.addEventListener("click", handleDemo);
-    dom.heroDemoBtn.addEventListener("click", handleDemo);
+    if (dom.demoBtn) dom.demoBtn.addEventListener("click", handleDemo);
+    if (dom.heroDemoBtn) dom.heroDemoBtn.addEventListener("click", handleDemo);
+    if (dom.stripDemoBtn) dom.stripDemoBtn.addEventListener("click", handleDemo);
+
+    if (dom.heroReviewsBtn) {
+      dom.heroReviewsBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const target = document.getElementById("reviews");
+        if (target) target.scrollIntoView({ behavior: "smooth" });
+      });
+    }
+
+    if (dom.heroDashboardBtn) {
+      dom.heroDashboardBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const target = document.getElementById("overview");
+        if (target) target.scrollIntoView({ behavior: "smooth" });
+      });
+    }
 
     // URL Import Toggle & Submit
     dom.urlToggleBtn.addEventListener("click", () => {

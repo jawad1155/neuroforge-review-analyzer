@@ -9,6 +9,7 @@
   <meta name="color-scheme" content="dark" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,600;1,700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -24,9 +25,9 @@
           <div class="brand-logo-mark" aria-hidden="true">
             <div class="brand-logo-inner">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#34d399"/>
-                <path d="M2 17l10 5 10-5" stroke="#10b981"/>
-                <path d="M2 12l10 5 10-5" stroke="#e5c158"/>
+                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#00f0ff"/>
+                <path d="M2 17l10 5 10-5" stroke="#00d2aa"/>
+                <path d="M2 12l10 5 10-5" stroke="#38bdf8"/>
               </svg>
             </div>
           </div>
@@ -37,7 +38,7 @@
         </a>
 
         <div class="nav-links">
-          <a href="#upload" class="nav-item">Upload</a>
+          <a href="#download" class="nav-item">Download</a>
           <a href="#overview" class="nav-item">Overview</a>
           <a href="#sentiment" class="nav-item">Sentiment</a>
           <a href="#topics" class="nav-item">Topics</a>
@@ -46,18 +47,21 @@
         </div>
 
         <div class="nav-meta-group">
-          <div class="status-pill" id="backend-status-pill" title="Backend Status">
+          <div class="status-pill status-pill--online" id="backend-status-pill" title="Backend Status">
             <span class="status-indicator-dot" id="backend-status-dot" aria-hidden="true"></span>
-            <span id="backend-status-text">Connecting...</span>
+            <span id="backend-status-text">System Online</span>
           </div>
           
-          <!-- Login Button -->
-          <button type="button" class="btn btn-secondary btn-sm" id="nav-login-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- User / Sign In Pill -->
+          <button type="button" class="user-pill-btn" id="nav-login-btn" title="Account / Sign In">
+            <svg class="user-pill-avatar" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            <span id="nav-user-label">Sign In</span>
+            <span id="nav-user-label">jawad52852</span>
+            <svg class="user-pill-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
           </button>
 
           <button type="button" class="mobile-nav-toggle" id="mobile-toggle-btn" aria-label="Toggle Navigation Menu">
@@ -72,7 +76,7 @@
 
       <!-- Mobile Dropdown Navigation -->
       <div class="mobile-menu-drawer" id="mobile-menu">
-        <a href="#upload" class="nav-item">Upload</a>
+        <a href="#download" class="nav-item">Download</a>
         <a href="#overview" class="nav-item">Overview</a>
         <a href="#sentiment" class="nav-item">Sentiment</a>
         <a href="#topics" class="nav-item">Topics</a>
@@ -84,95 +88,183 @@
     <main id="top">
       <!-- Hero Section -->
       <section class="hero-section">
-        <div class="container hero-grid">
-          <div class="hero-content">
-            <div class="hero-eyebrow">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 6v6l4 2"></path>
-              </svg>
-              <span>AI Customer Intelligence</span>
+        <!-- Glowing Wavy Background Ribbon -->
+        <div class="hero-wave-backdrop" aria-hidden="true">
+          <svg viewBox="0 0 1440 320" fill="none" preserveAspectRatio="none">
+            <path d="M-50 200 C 300 280, 500 120, 800 210 C 1100 300, 1300 160, 1500 240" stroke="url(#heroCyanGrad)" stroke-width="2.5" opacity="0.6"/>
+            <path d="M-50 220 C 280 140, 600 260, 950 170 C 1200 100, 1350 230, 1500 210" stroke="url(#heroCyanGlowGrad)" stroke-width="1.2" opacity="0.4"/>
+            <defs>
+              <linearGradient id="heroCyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.1"/>
+                <stop offset="40%" stop-color="#00f0ff" stop-opacity="0.8"/>
+                <stop offset="70%" stop-color="#00d2aa" stop-opacity="0.6"/>
+                <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.1"/>
+              </linearGradient>
+              <linearGradient id="heroCyanGlowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.1"/>
+                <stop offset="50%" stop-color="#00f0ff" stop-opacity="0.6"/>
+                <stop offset="100%" stop-color="#00d2aa" stop-opacity="0.1"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <div class="container hero-container">
+          <div class="hero-grid-three">
+            <!-- Left Column: Copy & Actions -->
+            <div class="hero-content">
+              <div class="hero-eyebrow-cyan">
+                AI POWERED REVIEW ANALYSIS
+              </div>
+              <h1 class="hero-title-main">
+                Turn Your<br />
+                Feedback Into<br />
+                <span class="hero-highlight-cyan">Real Insights.</span>
+              </h1>
+              <p class="hero-desc-clean">
+                NeuroForge instantly highlights what your customers love, hate, and what you can improve.
+              </p>
+              <div class="hero-cta-row">
+                <a href="#reviews" class="btn btn-pill-cyan" id="hero-cta-reviews">
+                  <span class="cta-sparkle">✦</span>
+                  <span>View Reviews</span>
+                  <span class="cta-arrow">→</span>
+                </a>
+                <a href="#overview" class="btn btn-pill-glass" id="hero-cta-dashboard">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="9" rx="1.5"></rect>
+                    <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
+                    <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
+                    <rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
+                  </svg>
+                  <span>View Dashboard</span>
+                </a>
+              </div>
             </div>
-            <h1 class="hero-title">
-              Understand What Your Customers Truly Think. <span class="highlight-emerald">In Real Time</span>.
-            </h1>
-            <p class="hero-desc">
-              Drop in your customer reviews and let NeuroForge instantly highlight what people love, what needs fixing, and how to improve your product.
-            </p>
-            <div class="hero-cta-group">
-              <a href="#upload" class="btn btn-primary" id="hero-cta-analyze">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="17 8 12 3 7 8"></polyline>
-                  <line x1="12" y1="3" x2="12" y2="15"></line>
-                </svg>
-                <span>Upload Your Reviews</span>
-              </a>
-              <button type="button" class="btn btn-gold" id="hero-cta-demo">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <span>Try with Demo Reviews</span>
-              </button>
-              <a href="#overview" class="btn btn-secondary">
-                <span>View Dashboard</span>
-              </a>
+
+            <!-- Center Column: 3D Holographic Glass Card -->
+            <div class="hero-card-col">
+              <div class="artwork-3d-card" id="artwork-card" role="img" aria-label="NeuroForge 3D Intelligence Artwork">
+                <div class="artwork-glow-radial" aria-hidden="true"></div>
+
+                <!-- Card Top Badges Row -->
+                <div class="card-hero-badges-row">
+                  <div class="card-metric-badge badge--pos">
+                    <div class="metric-badge-icon badge-icon--green">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                        <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                        <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                      </svg>
+                    </div>
+                    <div class="metric-badge-texts">
+                      <div class="metric-badge-val" id="card-hero-pos-val">94% <span class="badge-sub-label">Positive Sentiment</span></div>
+                      <div class="metric-badge-quote" id="card-hero-pos-quote">"Customers love the sound quality!"</div>
+                    </div>
+                  </div>
+
+                  <div class="card-metric-badge badge--rating">
+                    <div class="metric-badge-icon badge-icon--blue">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </div>
+                    <div class="metric-badge-texts">
+                      <div class="metric-badge-val" id="card-hero-rating-val">4.9 / 5.0 <span class="badge-sub-label">Rating</span></div>
+                      <div class="metric-badge-quote">Real Customer Feedback</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3D Isometric Animated Core -->
+                <div class="artwork-scene-3d">
+                  <!-- Ground Circular Discs in 3D perspective -->
+                  <div class="pedestal-disc pedestal-disc--outer"></div>
+                  <div class="pedestal-disc pedestal-disc--middle"></div>
+                  <div class="pedestal-disc pedestal-disc--inner"></div>
+                  <div class="pedestal-glow-spot"></div>
+
+                  <!-- Center 3D Isometric Cube / Stack -->
+                  <div class="isometric-core-unit">
+                    <div class="isometric-cube-visual">
+                      <div class="iso-plate plate-top"></div>
+                      <div class="iso-plate plate-mid"></div>
+                      <div class="iso-plate plate-bot"></div>
+                    </div>
+                  </div>
+
+                  <!-- Floating Particle Sparks -->
+                  <span class="particle-spark spark-1">✦</span>
+                  <span class="particle-spark spark-2">✦</span>
+                  <span class="particle-spark spark-3">✦</span>
+                  <span class="particle-spark spark-4">✦</span>
+                  <span class="particle-dot dot-1"></span>
+                  <span class="particle-dot dot-2"></span>
+                  <span class="particle-dot dot-3"></span>
+                </div>
+
+                <!-- Bottom Action Insights Card -->
+                <div class="card-action-insight-box">
+                  <div class="action-insight-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                  </div>
+                  <div class="action-insight-text">
+                    <div class="action-insight-title">Instant Action Insights</div>
+                    <div class="action-insight-sub" id="card-hero-insight-sub">"Battery &amp; setup friction detected"</div>
+                  </div>
+                </div>
+
+                <!-- Artwork Footer Bar -->
+                <div class="artwork-footer-bar">
+                  <div class="artwork-pulse-indicator">
+                    <span class="artwork-dot-cyan"></span>
+                    <span>NeuroForge Live Intelligence</span>
+                  </div>
+                  <span class="artwork-tag" id="telemetry-dataset-status">20 Reviews Ready</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Hero 3D Holographic Artwork Card -->
-          <div class="artwork-3d-card" id="artwork-card" role="img" aria-label="NeuroForge 3D Intelligence Artwork">
-            <div class="artwork-glow-radial" aria-hidden="true"></div>
-
-            <div class="artwork-scene-3d">
-              <!-- Concentric Rings -->
-              <div class="neural-ring neural-ring--outer"></div>
-              <div class="neural-ring neural-ring--middle"></div>
-              <div class="neural-ring neural-ring--inner"></div>
-
-              <!-- Glowing Center Core -->
-              <div class="neural-core-orb">
-                <div class="orb-glyph">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#34d399"/>
-                    <path d="M2 17l10 5 10-5" stroke="#10b981"/>
-                    <path d="M2 12l10 5 10-5" stroke="#e5c158"/>
-                  </svg>
-                </div>
-              </div>
-
-              <!-- Floating 3D Insight Badges -->
-              <div class="floating-badge badge--top-left">
-                <span class="floating-badge-icon" style="color:var(--emerald-400)">✦</span>
-                <div class="floating-badge-content">
-                  <span class="badge-headline">94% Positive Sentiment</span>
-                  <span class="badge-sub">"Customers love the sound quality"</span>
-                </div>
-              </div>
-
-              <div class="floating-badge badge--bottom-right">
-                <span class="floating-badge-icon" style="color:var(--gold-400)">⚡</span>
-                <div class="floating-badge-content">
-                  <span class="badge-headline">Instant Action Insights</span>
-                  <span class="badge-sub">"Battery & setup friction detected"</span>
-                </div>
-              </div>
-
-              <div class="floating-badge badge--top-right">
-                <span class="floating-badge-icon" style="color:var(--gold-400)">★</span>
-                <div class="floating-badge-content">
-                  <span class="badge-headline">4.9 / 5.0 Rating</span>
-                  <span class="badge-sub">Real Customer Feedback</span>
-                </div>
-              </div>
+          <!-- Bottom Full-Width Interactive Demo Strip -->
+          <div class="hero-demo-strip">
+            <div class="strip-left">
+              <span class="strip-sparkle">✦</span>
+              <span class="strip-text">Explore our instant demo to see your insights.</span>
             </div>
+            <button type="button" class="strip-btn" id="strip-demo-btn">
+              <span>Instant Analysis</span>
+              <span class="strip-arrow">→</span>
+            </button>
+          </div>
 
-            <div class="artwork-footer-bar">
-              <div class="artwork-pulse-indicator">
-                <span class="artwork-dot"></span>
-                <span>NeuroForge Live Intelligence</span>
-              </div>
-              <span class="artwork-tag" id="telemetry-dataset-status">Real-Time Insights</span>
+          <!-- Trust & Value Badges Row -->
+          <div class="hero-trust-row">
+            <div class="trust-item">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-500)" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <polyline points="9 12 11 14 15 10"></polyline>
+              </svg>
+              <span>Secure &amp; Private</span>
+            </div>
+            <div class="trust-item">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-500)" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <span>AI Powered Insights</span>
+            </div>
+            <div class="trust-item">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-500)" stroke-width="2">
+                <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+              </svg>
+              <span>Real-time Analysis</span>
+            </div>
+            <div class="trust-item">
+              <span style="color:var(--cyan-500);font-size:1.1rem;line-height:1;">✦</span>
+              <span>Smarter Decisions</span>
             </div>
           </div>
         </div>
@@ -724,7 +816,7 @@
       </section>
 
       <!-- Action & Export Bar -->
-      <section class="container">
+      <section class="container" id="download">
         <div class="action-export-bar">
           <div>
             <div style="font-weight:700; color:var(--text-white); font-size:0.95rem;">Download Your Report</div>
