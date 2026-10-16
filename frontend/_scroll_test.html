@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><title>scroll-test</title></head>
+<body>
+  <iframe id="f" src="/index.html" style="width:1280px;height:800px;border:0"></iframe>
+  <pre id="out">pending</pre>
+  <script>
+    (async () => {
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const out = {};
+      try {
+        const f = document.getElementById("f");
+        await new Promise((r) => f.addEventListener("load", r));
+        await wait(800);
+        const w = f.contentWindow;
+        const d = f.contentDocument;
+
+        // --- instrumentation ---
+        const calls = [];
+        const origScrollTo = w.scrollTo.bind(w);
+        w.scrollTo = function (...args) {
+          calls.push(args.map((a) => (typeof a === "object" ? JSON.stringify(a) : Math.round(Number(a) * 10) / 10)).join("|"));
+          return origScrollTo(...args);
+        };
+        let rafCount = 0;
+        const origRaf = w.requestAnimationFrame.bind(w);
+        w.requestAnimationFrame = function (cb) { rafCount++; return origRaf(cb); };
+
+        out.pageHeight = d.documentElement.scrollHeight;
+
+        // 1. rAF alive in iframe?
+        const r0 = rafCount;
+        await wait(300);
+        out.rafAlive = rafCount - r0;
+
+        // 2. instant scroll works?
+        origScrollTo({ top: 500, behavior: "instant" });
+        await wait(200);
+        out.instantScrollY = Math.round(w.scrollY);
+        origScrollTo({ top: 0, behavior: "instant" });
+        await wait(200);
+        out.resetY = Math.round(w.scrollY);
+
+        // 3. css-smooth scroll works?
+        origScrollTo({ top: 500 });
+        await wait(600);
+        out.cssSmoothY = Math.round(w.scrollY);
+        origScrollTo({ top: 0, behavior: "instant" });
+        await wait(200);
+
+        // 4. dispatch wheel and watch engine calls
+        calls.length = 0;
+        const ev = new w.WheelEvent("wheel", { deltaY: 900, deltaMode: 0, bubbles: true, cancelable: true });
+        d.body.dispatchEvent(ev);
+        out.wheelPrevented = ev.defaultPrevented;
+        const r1 = rafCount;
+        out.scrollYSamples = [];
+        for (let i = 0; i < 12; i++) { await wait(80); out.scrollYSamples.push(Math.round(w.scrollY)); }
+        out.rafDuringGlide = rafCount - r1;
+        out.scrollToCalls = calls.slice(0, 8);
+        out.callCount = calls.length;
+        out.finalY = Math.round(w.scrollY);
+      } catch (err) {
+        out.error = String(err && err.stack ? err.stack : err);
+      }
+      document.getElementById("out").textContent = "RESULT " + JSON.stringify(out);
+      document.title = "done";
+    })();
+  </script>
+</body>
+</html>

@@ -421,18 +421,16 @@
         headers: { Accept: "application/json" },
       });
       if (res.ok) {
-        dom.statusDot.style.background = "var(--emerald-400)";
-        dom.statusDot.style.boxShadow = "0 0 10px var(--emerald-400)";
-        dom.statusText.textContent = "System Online";
+        if (dom.statusDot) { dom.statusDot.style.background = "#10b981"; dom.statusDot.style.boxShadow = "0 0 10px rgba(16,185,129,0.6)"; }
+        if (dom.statusText) dom.statusText.textContent = "System Online";
         return true;
       }
     } catch (_) {
       // Standby
     }
 
-    dom.statusDot.style.background = "var(--gold-400)";
-    dom.statusDot.style.boxShadow = "0 0 10px var(--gold-400)";
-    dom.statusText.textContent = "Ready";
+    if (dom.statusDot) { dom.statusDot.style.background = "#f59e0b"; dom.statusDot.style.boxShadow = "0 0 10px rgba(245,158,11,0.6)"; }
+    if (dom.statusText) dom.statusText.textContent = "Offline";
     return false;
   }
 
@@ -1161,7 +1159,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
      10. AUTH & LOGIN MODAL
      -------------------------------------------------------------------------- */
   function initAuthModal() {
-    if (!dom.navLoginBtn || !dom.authModal) return;
+    if (!dom.authModal) return;
 
     let isSignUp = false;
 
@@ -1172,31 +1170,129 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
 
     const closeModal = () => dom.authModal.classList.remove("is-open");
 
-    dom.navLoginBtn.addEventListener("click", () => {
-      const saved = localStorage.getItem("neuroforge_user");
-      if (saved) {
-        if (confirm(`Currently signed in as ${saved}.\nWould you like to sign out?`)) {
-          localStorage.removeItem("neuroforge_user");
-          localStorage.removeItem("neuroforge_token");
-          dom.navUserLabel.textContent = "Sign In";
-          showToast("Signed out successfully.");
-        }
-      } else {
-        openModal();
+    // Show/hide user profile pill and auth elements based on login state
+    const showLoggedIn = (name) => {
+      const profilePill = $("#nav-user-profile");
+      const userLabel = $("#nav-user-label");
+      const userAvatar = $("#nav-user-avatar");
+      if (profilePill) profilePill.style.display = "inline-flex";
+      if (userLabel) userLabel.textContent = name;
+      if (userAvatar) {
+        const initials = name.substring(0, 2).toUpperCase();
+        userAvatar.textContent = initials;
       }
-    });
+
+      // Hide Hero Login & Sign up buttons, show logged-in actions
+      const heroAuthRow = $("#hero-auth-cta-row");
+      const heroUserRow = $("#hero-user-cta-row");
+      const heroCtaSignup = $("#hero-cta-signup");
+      const heroCtaLogin = $("#hero-cta-login");
+      if (heroAuthRow) heroAuthRow.style.display = "none";
+      if (heroCtaSignup) heroCtaSignup.style.display = "none";
+      if (heroCtaLogin) heroCtaLogin.style.display = "none";
+      if (heroUserRow) heroUserRow.style.display = "flex";
+
+      // Hide Mobile menu login & sign up buttons
+      const mobileAuth = $("#mobile-auth-actions");
+      const mobileLogin = $("#mobile-login-btn");
+      const mobileSignup = $("#mobile-signup-btn");
+      if (mobileAuth) mobileAuth.style.display = "none";
+      if (mobileLogin) mobileLogin.style.display = "none";
+      if (mobileSignup) mobileSignup.style.display = "none";
+
+      // Hide any navbar login/signup buttons if present
+      const navLogin = $("#nav-login-btn");
+      const navSignup = $("#nav-signup-btn");
+      const navAuthGroup = $("#nav-auth-actions");
+      if (navLogin) navLogin.style.display = "none";
+      if (navSignup) navSignup.style.display = "none";
+      if (navAuthGroup) navAuthGroup.style.display = "none";
+    };
+
+    const showLoggedOut = () => {
+      const profilePill = $("#nav-user-profile");
+      if (profilePill) profilePill.style.display = "none";
+      localStorage.removeItem("neuroforge_user");
+      localStorage.removeItem("neuroforge_token");
+
+      // Re-show Hero Login & Sign up buttons
+      const heroAuthRow = $("#hero-auth-cta-row");
+      const heroUserRow = $("#hero-user-cta-row");
+      const heroCtaSignup = $("#hero-cta-signup");
+      const heroCtaLogin = $("#hero-cta-login");
+      if (heroAuthRow) heroAuthRow.style.display = "flex";
+      if (heroCtaSignup) heroCtaSignup.style.display = "inline-flex";
+      if (heroCtaLogin) heroCtaLogin.style.display = "inline-flex";
+      if (heroUserRow) heroUserRow.style.display = "none";
+
+      // Re-show Mobile menu login & sign up buttons
+      const mobileAuth = $("#mobile-auth-actions");
+      const mobileLogin = $("#mobile-login-btn");
+      const mobileSignup = $("#mobile-signup-btn");
+      if (mobileAuth) mobileAuth.style.display = "flex";
+      if (mobileLogin) mobileLogin.style.display = "inline-flex";
+      if (mobileSignup) mobileSignup.style.display = "inline-flex";
+
+      // Re-show navbar login/signup buttons if present
+      const navLogin = $("#nav-login-btn");
+      const navSignup = $("#nav-signup-btn");
+      const navAuthGroup = $("#nav-auth-actions");
+      if (navLogin) navLogin.style.display = "inline-flex";
+      if (navSignup) navSignup.style.display = "inline-flex";
+      if (navAuthGroup) navAuthGroup.style.display = "inline-flex";
+    };
+
+    // Navbar login button (may or may not exist)
+    if (dom.navLoginBtn) {
+      dom.navLoginBtn.addEventListener("click", () => {
+        isSignUp = false;
+        if (dom.tabSignin) { dom.tabSignin.classList.add("is-active"); if (dom.tabSignup) dom.tabSignup.classList.remove("is-active"); }
+        if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
+        openModal();
+      });
+    }
 
     if (dom.authClose) dom.authClose.addEventListener("click", closeModal);
     dom.authModal.addEventListener("click", (e) => {
       if (e.target === dom.authModal) closeModal();
     });
 
+    // Helper to open modal on a specific tab
+    const openSignUp = () => {
+      isSignUp = true;
+      if (dom.tabSignup) { dom.tabSignup.classList.add("is-active"); if (dom.tabSignin) dom.tabSignin.classList.remove("is-active"); }
+      if (dom.authSubmitText) dom.authSubmitText.textContent = "Create Account";
+      openModal();
+    };
+    const openSignIn = () => {
+      isSignUp = false;
+      if (dom.tabSignin) { dom.tabSignin.classList.add("is-active"); if (dom.tabSignup) dom.tabSignup.classList.remove("is-active"); }
+      if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
+      openModal();
+    };
+
+    // Navbar Sign up button (may or may not exist)
+    const navSignupBtn = $("#nav-signup-btn");
+    if (navSignupBtn) navSignupBtn.addEventListener("click", openSignUp);
+
+    // Hero CTA buttons
+    const heroCtaSignup = $("#hero-cta-signup");
+    if (heroCtaSignup) heroCtaSignup.addEventListener("click", openSignUp);
+    const heroCtaLogin = $("#hero-cta-login");
+    if (heroCtaLogin) heroCtaLogin.addEventListener("click", openSignIn);
+
+    // Mobile menu buttons
+    const mobileLoginBtn = $("#mobile-login-btn");
+    if (mobileLoginBtn) mobileLoginBtn.addEventListener("click", openSignIn);
+    const mobileSignupBtn = $("#mobile-signup-btn");
+    if (mobileSignupBtn) mobileSignupBtn.addEventListener("click", openSignUp);
+
     if (dom.tabSignin) {
       dom.tabSignin.addEventListener("click", () => {
         isSignUp = false;
         dom.tabSignin.classList.add("is-active");
-        dom.tabSignup.classList.remove("is-active");
-        dom.authSubmitText.textContent = "Sign In";
+        if (dom.tabSignup) dom.tabSignup.classList.remove("is-active");
+        if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
       });
     }
 
@@ -1204,8 +1300,8 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
       dom.tabSignup.addEventListener("click", () => {
         isSignUp = true;
         dom.tabSignup.classList.add("is-active");
-        dom.tabSignin.classList.remove("is-active");
-        dom.authSubmitText.textContent = "Create Account";
+        if (dom.tabSignin) dom.tabSignin.classList.remove("is-active");
+        if (dom.authSubmitText) dom.authSubmitText.textContent = "Create Account";
       });
     }
 
@@ -1245,12 +1341,12 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
           // Graceful fallback for mock/demo
         } finally {
           dom.authSubmitBtn.disabled = false;
-          dom.authSubmitText.textContent = isSignUp ? "Create Account" : "Sign In";
+          if (dom.authSubmitText) dom.authSubmitText.textContent = isSignUp ? "Create Account" : "Sign In";
           localStorage.setItem("neuroforge_user", email);
           const shortName = email.split("@")[0];
-          dom.navUserLabel.textContent = shortName;
+          showLoggedIn(shortName);
           closeModal();
-          showToast(`Welcome back, ${shortName}!`, "success");
+          showToast(`Welcome, ${shortName}!`, "success");
         }
       });
     }
@@ -1259,18 +1355,28 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
       dom.authDemoBtn.addEventListener("click", () => {
         const demoUser = "demo.admin@neuroforge.ai";
         localStorage.setItem("neuroforge_user", demoUser);
-        dom.navUserLabel.textContent = "Admin";
+        showLoggedIn("Admin");
         closeModal();
         showToast("Signed in as Demo Admin!", "success");
+      });
+    }
+
+    // Logout button
+    const logoutBtn = $("#nav-logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", () => {
+        showLoggedOut();
+        showToast("You have been signed out.", "info");
       });
     }
 
     // Check saved user on startup
     const saved = localStorage.getItem("neuroforge_user");
     if (saved) {
-      dom.navUserLabel.textContent = saved.includes("@") ? saved.split("@")[0] : saved;
+      const shortName = saved.includes("@") ? saved.split("@")[0] : saved;
+      showLoggedIn(shortName);
     } else {
-      dom.navUserLabel.textContent = "jawad52852";
+      showLoggedOut();
     }
   }
 
@@ -1537,12 +1643,96 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
     dom.resetBtn.addEventListener("click", resetWorkspace);
   }
 
+  /* --------------------------------------------------------------------------
+     11. SCROLL BEHAVIOR — Navbar glass on scroll + active section tracking
+     -------------------------------------------------------------------------- */
+  function initScrollBehavior() {
+    const navbarWrapper = document.querySelector(".navbar-wrapper");
+    const navItems = document.querySelectorAll(".nav-links .nav-item");
+
+    // Section IDs matched to nav links
+    const sections = [
+      { id: "top",         link: navItems[0] },
+      { id: "upload",      link: navItems[1] },
+      { id: "overview",    link: navItems[2] },
+      { id: "reviews",     link: navItems[3] },
+      { id: "site-footer", link: navItems[4] },
+    ];
+
+    /* --- Navbar glass & active link on scroll with rAF throttle --- */
+    let isTicking = false;
+    const updateScrollState = () => {
+      const y = window.scrollY;
+
+      // Toggle glassy navbar via GPU-accelerated CSS transition
+      if (navbarWrapper) {
+        navbarWrapper.classList.toggle("is-scrolled", y > 30);
+      }
+
+      // Active nav link tracking
+      const scrollMid = y + window.innerHeight * 0.35;
+      let active = sections[0];
+
+      for (const s of sections) {
+        const el = document.getElementById(s.id);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        const top = rect.top + y;
+        if (scrollMid >= top) active = s;
+      }
+
+      navItems.forEach((n) => n.classList.remove("is-active"));
+      if (active && active.link) active.link.classList.add("is-active");
+
+      isTicking = false;
+    };
+
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (!isTicking) {
+          window.requestAnimationFrame(updateScrollState);
+          isTicking = true;
+        }
+      },
+      { passive: true }
+    );
+    updateScrollState(); // run once on load
+
+    /* --- Anchor links — buttery smooth scroll with sticky nav offset compensation --- */
+    document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+      anchor.addEventListener("click", (e) => {
+        const href = anchor.getAttribute("href");
+        if (!href || href === "#") return;
+        const targetId = href.slice(1);
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        e.preventDefault();
+
+        const navH = navbarWrapper ? navbarWrapper.offsetHeight : 70;
+        const targetTop = targetId === "top" ? 0 : target.getBoundingClientRect().top + window.scrollY - navH - 8;
+
+        window.scrollTo({
+          top: Math.max(0, targetTop),
+          behavior: "smooth",
+        });
+
+        // Close mobile drawer if open
+        const mobileMenu = document.getElementById("mobile-menu");
+        if (mobileMenu && mobileMenu.classList.contains("is-active")) {
+          mobileMenu.classList.remove("is-active");
+        }
+      });
+    });
+  }
+
   // Application Initialize
   document.addEventListener("DOMContentLoaded", () => {
     initAmbientCanvas();
     initArtwork3DTilt();
     initAuthModal();
     setupEventListeners();
+    initScrollBehavior();
     checkBackendHealth();
   });
 })();
