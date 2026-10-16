@@ -153,8 +153,13 @@ class ReviewAnalyzer:
         # 1. If Evolus Agent Client is configured, attempt agent execution first
         if self.evolus_client:
             try:
+                evolus_model = (
+                    f"{self.evolus_workspace_id}:{self.evolus_agent_id}"
+                    if (self.evolus_workspace_id and self.evolus_agent_id)
+                    else self.model_name
+                )
                 request_data = {
-                    "model": self.model_name,
+                    "model": evolus_model,
                     "messages": [{"role": "user", "content": contents}],
                 }
                 if json_mode:
