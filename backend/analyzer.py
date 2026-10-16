@@ -18,13 +18,13 @@ class ReviewAnalyzer:
     """Customer-review CSV analyzer powered by AMD Radeon API."""
 
     def __init__(self):
-        self.api_key = os.getenv("AMD_RADEON_API_KEY")
+        self.api_key = os.getenv("AMD_RADEON_API_KEY", "rc-cd442321951649ca3db16dd10e12b87d1f2a7b5924d97b40")
         # Defaulting to the recommended fast model from AMD docs
         self.model_name = "DeepSeek-V4-Flash"
         self.evolus_workspace_id = os.getenv("EVOLUS_WORKSPACE_ID", "5f96b97d-e488-44dc-973d-09c30c5625aa")
         self.evolus_agent_id = os.getenv("EVOLUS_AGENT_ID", "aa475004-2f3e-4b8c-93cd-0676450c5058")
         self.evolus_agent_name = "Review Insight Analyst"
-        self.evolus_api_key = os.getenv("EVOLUS_API_KEY", "")
+        self.evolus_api_key = os.getenv("EVOLUS_API_KEY", "evo_ZqTdAQpQBn6A0gsdXKb9PuJZejGcl913mLMmXbUe")
         self.evolus_base_url = os.getenv("EVOLUS_API_BASE_URL", "https://api.evolus.ai/api/v1")
 
         # Primary AMD inference client
