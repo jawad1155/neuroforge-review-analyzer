@@ -23,8 +23,11 @@ try:
     else:
         engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 except Exception as e:
+    import tempfile
     print(f"Primary database connection not ready ({e}). Falling back to local SQLite database.")
-    DATABASE_URL = "sqlite:///./neuroforge.db"
+    temp_dir = tempfile.gettempdir()
+    db_file = Path(temp_dir) / "neuroforge.db"
+    DATABASE_URL = f"sqlite:///{db_file.as_posix()}"
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
