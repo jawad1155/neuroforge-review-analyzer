@@ -33,14 +33,9 @@ try:
         connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
         engine = create_engine(DATABASE_URL, connect_args=connect_args)
 except Exception as e:
-    import tempfile
+
     print(f"Primary database connection not ready ({e}). Falling back to SQLite database.")
-    if is_vercel:
-        DATABASE_URL = "sqlite:////tmp/neuroforge.db"
-    else:
-        temp_dir = tempfile.gettempdir()
-        db_file = Path(temp_dir) / "neuroforge.db"
-        DATABASE_URL = f"sqlite:///{db_file.as_posix()}"
+    DATABASE_URL = default_db
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
