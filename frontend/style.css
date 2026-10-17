@@ -2382,6 +2382,72 @@ ul, ol {
   box-shadow: 0 0 0 3px var(--accent-sky-bg);
 }
 
+.auth-otp-input {
+  letter-spacing: 0.45em;
+  font-family: 'SF Mono', Consolas, Monaco, 'Courier New', monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  color: #0369a1;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+}
+
+.auth-otp-input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15);
+  background: #ffffff;
+}
+
+.auth-alert-box {
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+.auth-alert-box.is-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.auth-alert-box.is-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+.auth-alert-box.is-info {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+}
+
+.auth-text-btn {
+  background: none;
+  border: none;
+  color: #0284c7;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s ease, text-decoration 0.15s ease;
+}
+
+.auth-text-btn:hover {
+  color: #0369a1;
+  text-decoration: underline;
+}
+
+.auth-text-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 /* --- Cirrus Open Sky Website Footer (Glassy) --- */
 .site-footer {
   margin-top: auto;

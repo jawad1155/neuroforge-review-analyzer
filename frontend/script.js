@@ -33,6 +33,8 @@
       importUrl: "/import-url",
       login: "/auth/token",
       signup: "/auth/signup",
+      sendVerification: "/auth/send-verification",
+      verifyCode: "/auth/verify-code",
     },
     MAX_FILE_MB: 10,
     PAGE_SIZE: 10,
@@ -244,14 +246,25 @@
     // Auth Modal
     authModal: $("#auth-modal-backdrop"),
     authClose: $("#auth-modal-close"),
+    authTabs: $("#auth-tabs"),
+    authAlert: $("#auth-alert"),
     tabSignin: $("#tab-signin-btn"),
     tabSignup: $("#tab-signup-btn"),
     authForm: $("#auth-form"),
+    authEmailGroup: $("#auth-email-group"),
+    authPasswordGroup: $("#auth-password-group"),
+    authCodeGroup: $("#auth-code-group"),
     authEmail: $("#auth-email"),
     authPassword: $("#auth-password"),
+    authCode: $("#auth-code"),
+    authCodeTimer: $("#auth-code-timer"),
+    authBackBtn: $("#auth-back-btn"),
+    authResendBtn: $("#auth-resend-btn"),
     authSubmitBtn: $("#auth-submit-btn"),
     authSubmitText: $("#auth-submit-text"),
     authDemoBtn: $("#auth-demo-btn"),
+    authModalTitle: $("#auth-modal-title"),
+    authModalSub: $(".auth-sub"),
   };
 
   // Toast System
@@ -1165,8 +1178,6 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
   function initAuthModal() {
     if (!dom.authModal) return;
 
-    let isSignUp = false;
-
     const openModal = () => {
       dom.authModal.classList.add("is-open");
       if (dom.authEmail) dom.authEmail.focus();
@@ -1246,34 +1257,122 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
       if (navAuthGroup) navAuthGroup.style.display = "inline-flex";
     };
 
-    // Navbar login button (may or may not exist)
-    if (dom.navLoginBtn) {
-      dom.navLoginBtn.addEventListener("click", () => {
-        isSignUp = false;
-        if (dom.tabSignin) { dom.tabSignin.classList.add("is-active"); if (dom.tabSignup) dom.tabSignup.classList.remove("is-active"); }
+    let isSignUp = false;
+    let signupStep = 1; // 1: Email + Password, 2: 6-Digit Email Verification Code
+    let pendingSignup = { email: "", password: "" };
+    let resendTimer = null;
+
+    const setAuthAlert = (message, type = "error") => {
+      if (!dom.authAlert) return;
+      if (!message) {
+        dom.authAlert.style.display = "none";
+        dom.authAlert.textContent = "";
+        dom.authAlert.className = "auth-alert-box";
+        return;
+      }
+      dom.authAlert.textContent = message;
+      dom.authAlert.className = `auth-alert-box is-${type}`;
+      dom.authAlert.style.display = "block";
+    };
+
+    const updateAuthModeUI = () => {
+      setAuthAlert(null);
+      if (isSignUp) {
+        if (signupStep === 1) {
+          if (dom.authTabs) dom.authTabs.style.display = "flex";
+          if (dom.tabSignup) dom.tabSignup.classList.add("is-active");
+          if (dom.tabSignin) dom.tabSignin.classList.remove("is-active");
+          if (dom.authEmailGroup) dom.authEmailGroup.style.display = "flex";
+          if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "flex";
+          if (dom.authCodeGroup) dom.authCodeGroup.style.display = "none";
+          if (dom.authDemoBtn) dom.authDemoBtn.style.display = "block";
+          if (dom.authModalTitle) dom.authModalTitle.textContent = "Create Your Account";
+          if (dom.authModalSub) dom.authModalSub.textContent = "Enter your work email and password to receive a verification code.";
+          if (dom.authSubmitText) dom.authSubmitText.textContent = "Send Verification Code →";
+          if (dom.authEmail) dom.authEmail.required = true;
+          if (dom.authPassword) dom.authPassword.required = true;
+          if (dom.authCode) dom.authCode.required = false;
+        } else {
+          // Step 2: Verification Code
+          if (dom.authTabs) dom.authTabs.style.display = "none";
+          if (dom.authEmailGroup) dom.authEmailGroup.style.display = "none";
+          if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "none";
+          if (dom.authCodeGroup) dom.authCodeGroup.style.display = "flex";
+          if (dom.authDemoBtn) dom.authDemoBtn.style.display = "none";
+          if (dom.authModalTitle) dom.authModalTitle.textContent = "Verify Your Email";
+          if (dom.authModalSub) {
+            dom.authModalSub.innerHTML = `Enter the 6-digit code sent to <strong>${pendingSignup.email}</strong>`;
+          }
+          if (dom.authSubmitText) dom.authSubmitText.textContent = "Verify & Complete Signup";
+          if (dom.authEmail) dom.authEmail.required = false;
+          if (dom.authPassword) dom.authPassword.required = false;
+          if (dom.authCode) {
+            dom.authCode.required = true;
+            dom.authCode.value = "";
+            setTimeout(() => dom.authCode.focus(), 60);
+          }
+        }
+      } else {
+        // Sign In
+        signupStep = 1;
+        if (dom.authTabs) dom.authTabs.style.display = "flex";
+        if (dom.tabSignin) dom.tabSignin.classList.add("is-active");
+        if (dom.tabSignup) dom.tabSignup.classList.remove("is-active");
+        if (dom.authEmailGroup) dom.authEmailGroup.style.display = "flex";
+        if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "flex";
+        if (dom.authCodeGroup) dom.authCodeGroup.style.display = "none";
+        if (dom.authDemoBtn) dom.authDemoBtn.style.display = "block";
+        if (dom.authModalTitle) dom.authModalTitle.textContent = "Welcome to NeuroForge";
+        if (dom.authModalSub) dom.authModalSub.textContent = "Sign in to sync your reviews and access past analyses.";
         if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
-        openModal();
-      });
+        if (dom.authEmail) dom.authEmail.required = true;
+        if (dom.authPassword) dom.authPassword.required = true;
+        if (dom.authCode) dom.authCode.required = false;
+      }
+    };
+
+    const startResendCooldown = () => {
+      if (!dom.authResendBtn) return;
+      let secondsLeft = 30;
+      dom.authResendBtn.disabled = true;
+      dom.authResendBtn.textContent = `Resend in ${secondsLeft}s`;
+      clearInterval(resendTimer);
+      resendTimer = setInterval(() => {
+        secondsLeft -= 1;
+        if (secondsLeft <= 0) {
+          clearInterval(resendTimer);
+          dom.authResendBtn.disabled = false;
+          dom.authResendBtn.textContent = "Resend code";
+        } else {
+          dom.authResendBtn.textContent = `Resend in ${secondsLeft}s`;
+        }
+      }, 1000);
+    };
+
+    // Helper to open modal on a specific tab
+    const openSignUp = () => {
+      isSignUp = true;
+      signupStep = 1;
+      updateAuthModeUI();
+      openModal();
+    };
+
+    const openSignIn = () => {
+      isSignUp = false;
+      signupStep = 1;
+      updateAuthModeUI();
+      openModal();
+    };
+
+    // Navbar login button
+    if (dom.navLoginBtn) {
+      dom.navLoginBtn.addEventListener("click", openSignIn);
     }
 
     if (dom.authClose) dom.authClose.addEventListener("click", closeModal);
     dom.authModal.addEventListener("click", (e) => {
       if (e.target === dom.authModal) closeModal();
     });
-
-    // Helper to open modal on a specific tab
-    const openSignUp = () => {
-      isSignUp = true;
-      if (dom.tabSignup) { dom.tabSignup.classList.add("is-active"); if (dom.tabSignin) dom.tabSignin.classList.remove("is-active"); }
-      if (dom.authSubmitText) dom.authSubmitText.textContent = "Create Account";
-      openModal();
-    };
-    const openSignIn = () => {
-      isSignUp = false;
-      if (dom.tabSignin) { dom.tabSignin.classList.add("is-active"); if (dom.tabSignup) dom.tabSignup.classList.remove("is-active"); }
-      if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
-      openModal();
-    };
 
     // Navbar Sign up button (may or may not exist)
     const navSignupBtn = $("#nav-signup-btn");
@@ -1294,63 +1393,208 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
     if (dom.tabSignin) {
       dom.tabSignin.addEventListener("click", () => {
         isSignUp = false;
-        dom.tabSignin.classList.add("is-active");
-        if (dom.tabSignup) dom.tabSignup.classList.remove("is-active");
-        if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
+        signupStep = 1;
+        updateAuthModeUI();
       });
     }
 
     if (dom.tabSignup) {
       dom.tabSignup.addEventListener("click", () => {
         isSignUp = true;
-        dom.tabSignup.classList.add("is-active");
-        if (dom.tabSignin) dom.tabSignin.classList.remove("is-active");
-        if (dom.authSubmitText) dom.authSubmitText.textContent = "Create Account";
+        signupStep = 1;
+        updateAuthModeUI();
+      });
+    }
+
+    if (dom.authBackBtn) {
+      dom.authBackBtn.addEventListener("click", () => {
+        signupStep = 1;
+        updateAuthModeUI();
+        if (dom.authEmail) dom.authEmail.focus();
+      });
+    }
+
+    if (dom.authResendBtn) {
+      dom.authResendBtn.addEventListener("click", async () => {
+        if (!pendingSignup.email) return;
+        setAuthAlert(null);
+        dom.authResendBtn.disabled = true;
+        dom.authResendBtn.textContent = "Sending...";
+
+        try {
+          const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.sendVerification, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: pendingSignup.email }),
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.detail || "Failed to resend code.");
+          }
+
+          if (data.simulated) {
+            setAuthAlert(`[DEV MODE] New Code: ${data.code}`, "info");
+          } else {
+            setAuthAlert("A fresh verification code was sent to your inbox.", "success");
+          }
+          startResendCooldown();
+        } catch (err) {
+          setAuthAlert(err.message, "error");
+          dom.authResendBtn.disabled = false;
+          dom.authResendBtn.textContent = "Resend code";
+        }
       });
     }
 
     if (dom.authForm) {
       dom.authForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const email = dom.authEmail.value.trim();
-        const password = dom.authPassword.value;
+        setAuthAlert(null);
 
-        dom.authSubmitBtn.disabled = true;
-        dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>Processing...</span>`;
+        if (!isSignUp) {
+          // --- SIGN IN FLOW ---
+          const email = dom.authEmail.value.trim().toLowerCase();
+          const password = dom.authPassword.value;
+          dom.authSubmitBtn.disabled = true;
+          dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>Signing in...</span>`;
 
-        try {
-          if (isSignUp) {
-            await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.signup, {
+          try {
+            const formData = new URLSearchParams();
+            formData.append("username", email);
+            formData.append("password", password);
+
+            const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.login, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: formData.toString(),
+            });
+
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.detail || "Incorrect email or password.");
+            }
+
+            const data = await res.json();
+            if (data.access_token) {
+              localStorage.setItem("neuroforge_token", data.access_token);
+            }
+            localStorage.setItem("neuroforge_user", email);
+            const shortName = email.split("@")[0];
+            showLoggedIn(shortName);
+            closeModal();
+            showToast(`Welcome back, ${shortName}!`, "success");
+          } catch (err) {
+            setAuthAlert(err.message || "Failed to sign in. Please check your credentials.", "error");
+          } finally {
+            dom.authSubmitBtn.disabled = false;
+            if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
+          }
+        } else if (signupStep === 1) {
+          // --- SIGN UP STEP 1: REQUEST VERIFICATION CODE ---
+          const email = dom.authEmail.value.trim().toLowerCase();
+          const password = dom.authPassword.value;
+
+          if (!email || !email.includes("@")) {
+            setAuthAlert("Please enter a valid work email address.", "error");
+            return;
+          }
+          if (!password || password.length < 6) {
+            setAuthAlert("Password must be at least 6 characters long.", "error");
+            return;
+          }
+
+          dom.authSubmitBtn.disabled = true;
+          dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>Sending code...</span>`;
+
+          try {
+            const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.sendVerification, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email, password }),
+              body: JSON.stringify({ email }),
             });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              throw new Error(data.detail || "Unable to send verification email. Please try again.");
+            }
+
+            pendingSignup = { email, password };
+            signupStep = 2;
+            updateAuthModeUI();
+
+            if (data.simulated) {
+              setAuthAlert(`[DEV MODE] Verification Code: ${data.code}`, "info");
+            } else {
+              setAuthAlert("Verification code sent! Please check your email inbox.", "success");
+            }
+            startResendCooldown();
+          } catch (err) {
+            setAuthAlert(err.message, "error");
+          } finally {
+            dom.authSubmitBtn.disabled = false;
+            if (dom.authSubmitText && signupStep === 1) {
+              dom.authSubmitText.textContent = "Send Verification Code →";
+            }
+          }
+        } else if (signupStep === 2) {
+          // --- SIGN UP STEP 2: VERIFY CODE & CREATE ACCOUNT ---
+          const code = dom.authCode ? dom.authCode.value.trim() : "";
+          if (!code || code.length !== 6) {
+            setAuthAlert("Please enter the complete 6-digit verification code.", "error");
+            return;
           }
 
-          const formData = new URLSearchParams();
-          formData.append("username", email);
-          formData.append("password", password);
+          dom.authSubmitBtn.disabled = true;
+          dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>Creating account...</span>`;
 
-          const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.login, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formData.toString(),
-          });
+          try {
+            const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.signup, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: pendingSignup.email,
+                password: pendingSignup.password,
+                code: code
+              }),
+            });
 
-          if (res.ok) {
-            const data = await res.json();
-            localStorage.setItem("neuroforge_token", data.access_token);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              throw new Error(data.detail || "Verification failed. Please check the code.");
+            }
+
+            // Auto-login after successful verification
+            const formData = new URLSearchParams();
+            formData.append("username", pendingSignup.email);
+            formData.append("password", pendingSignup.password);
+
+            const loginRes = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.login, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: formData.toString(),
+            });
+
+            if (loginRes.ok) {
+              const loginData = await loginRes.json();
+              if (loginData.access_token) {
+                localStorage.setItem("neuroforge_token", loginData.access_token);
+              }
+            }
+
+            localStorage.setItem("neuroforge_user", pendingSignup.email);
+            const shortName = pendingSignup.email.split("@")[0];
+            showLoggedIn(shortName);
+            closeModal();
+            showToast(`Account verified! Welcome to NeuroForge, ${shortName}!`, "success");
+          } catch (err) {
+            setAuthAlert(err.message, "error");
+          } finally {
+            dom.authSubmitBtn.disabled = false;
+            if (dom.authSubmitText) {
+              dom.authSubmitText.textContent = "Verify & Complete Signup";
+            }
           }
-        } catch (_) {
-          // Graceful fallback for mock/demo
-        } finally {
-          dom.authSubmitBtn.disabled = false;
-          if (dom.authSubmitText) dom.authSubmitText.textContent = isSignUp ? "Create Account" : "Sign In";
-          localStorage.setItem("neuroforge_user", email);
-          const shortName = email.split("@")[0];
-          showLoggedIn(shortName);
-          closeModal();
-          showToast(`Welcome, ${shortName}!`, "success");
         }
       });
     }

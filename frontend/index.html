@@ -829,19 +829,44 @@
         <p class="auth-sub">Sign in to sync your reviews and access past analyses.</p>
       </div>
 
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="auth-tabs">
         <button type="button" class="auth-tab is-active" id="tab-signin-btn">Sign In</button>
         <button type="button" class="auth-tab" id="tab-signup-btn">Create Account</button>
       </div>
 
+      <div id="auth-alert" class="auth-alert-box" style="display:none;" role="alert"></div>
+
       <form class="auth-form" id="auth-form">
-        <div class="auth-input-group">
+        <!-- Email & Password Inputs (Step 1) -->
+        <div class="auth-input-group" id="auth-email-group">
           <label for="auth-email" class="auth-label">Work Email</label>
-          <input type="email" id="auth-email" class="auth-input" placeholder="you@company.com" required />
+          <input type="email" id="auth-email" class="auth-input" placeholder="you@company.com" required autocomplete="email" />
         </div>
-        <div class="auth-input-group">
+        <div class="auth-input-group" id="auth-password-group">
           <label for="auth-password" class="auth-label">Password</label>
-          <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" required />
+          <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+
+        <!-- 6-Digit Email Verification Code Input (Step 2 - Signup OTP) -->
+        <div class="auth-input-group" id="auth-code-group" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <label for="auth-code" class="auth-label" style="margin-bottom:0;">6-Digit Verification Code</label>
+            <span id="auth-code-timer" style="font-size:11px;color:var(--text-muted);font-weight:500;">Valid for 10 min</span>
+          </div>
+          <input
+            type="text"
+            id="auth-code"
+            class="auth-input auth-otp-input"
+            placeholder="123456"
+            maxlength="6"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="one-time-code"
+          />
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;">
+            <button type="button" class="auth-text-btn" id="auth-back-btn">&larr; Change email</button>
+            <button type="button" class="auth-text-btn" id="auth-resend-btn">Resend code</button>
+          </div>
         </div>
 
         <button type="submit" class="btn btn-primary" style="width:100%;margin-top:6px;" id="auth-submit-btn">

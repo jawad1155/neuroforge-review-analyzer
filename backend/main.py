@@ -26,12 +26,13 @@ from backend.scraper import ReviewScraper
 from backend.database import (
     Base, engine, SessionLocal, get_db,
     User, Project, Dataset, Review, AnalysisResult,
-    APIKey, Job, WebhookSubscription, init_db
+    APIKey, Job, WebhookSubscription, VerificationCode, init_db
 )
 from backend.auth import (
     get_password_hash, verify_password, create_access_token,
     get_current_user, get_api_key_user, oauth2_scheme
 )
+from backend.email_service import send_verification_email
 
 app = FastAPI(
     title="NeuroForge Review Analyzer API",
@@ -65,9 +66,17 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class SendCodeRequest(BaseModel):
+    email: str
+
+class VerifyCodeRequest(BaseModel):
+    email: str
+    code: str
+
 class UserCreate(BaseModel):
     email: str
     password: str
+    code: Optional[str] = None
 
 class ProjectCreate(BaseModel):
     name: str
@@ -130,15 +139,105 @@ async def evolus_sync(payload: Optional[Dict[str, Any]] = None):
     }
 
 # -------------------------------------------------------------
-# AUTHENTICATION ENDPOINTS
+# AUTHENTICATION & EMAIL VERIFICATION ENDPOINTS
 # -------------------------------------------------------------
+@app.post("/auth/send-verification")
+async def send_verification(req: SendCodeRequest, db: Session = Depends(get_db)):
+    clean_email = req.email.strip().lower()
+    if not clean_email or "@" not in clean_email:
+        raise HTTPException(status_code=400, detail="Please provide a valid email address.")
+
+    # Check if an account already exists with this email
+    existing_user = db.query(User).filter(User.email == clean_email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="An account with this email already exists. Please sign in instead.")
+
+    # Generate a cryptographically secure 6-digit verification code
+    code = f"{secrets.randbelow(900000) + 100000}"
+
+    # Invalidate previous unused verification codes for this email
+    db.query(VerificationCode).filter(
+        VerificationCode.email == clean_email,
+        VerificationCode.is_used == False
+    ).update({"is_used": True})
+
+    # Save new verification record (valid for 10 minutes)
+    from datetime import datetime, timedelta
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    record = VerificationCode(
+        email=clean_email,
+        code=code,
+        expires_at=expires_at,
+        is_used=False
+    )
+    db.add(record)
+    db.commit()
+
+    # Dispatch email via Brevo transactional API
+    send_result = await send_verification_email(clean_email, code)
+    if not send_result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=send_result.get("error", "Failed to deliver email through Brevo.")
+        )
+
+    return {
+        "success": True,
+        "message": f"Verification code sent to {clean_email}.",
+        "simulated": send_result.get("simulated", False)
+    }
+
+@app.post("/auth/verify-code")
+async def verify_code_endpoint(req: VerifyCodeRequest, db: Session = Depends(get_db)):
+    clean_email = req.email.strip().lower()
+    clean_code = req.code.strip()
+
+    from datetime import datetime
+    record = db.query(VerificationCode).filter(
+        VerificationCode.email == clean_email,
+        VerificationCode.code == clean_code,
+        VerificationCode.is_used == False,
+        VerificationCode.expires_at > datetime.utcnow()
+    ).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification code. Please check your inbox or request a new one."
+        )
+
+    return {"success": True, "message": "Verification code is valid."}
+
 @app.post("/auth/signup")
 async def signup(user_in: UserCreate, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == user_in.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
+    clean_email = user_in.email.strip().lower()
+
+    if db.query(User).filter(User.email == clean_email).first():
+        raise HTTPException(status_code=400, detail="Email already registered. Please sign in.")
+
+    if not user_in.code or not user_in.code.strip():
+        raise HTTPException(status_code=400, detail="Verification code is required to complete signup.")
+
+    from datetime import datetime
+    clean_code = user_in.code.strip()
+    record = db.query(VerificationCode).filter(
+        VerificationCode.email == clean_email,
+        VerificationCode.code == clean_code,
+        VerificationCode.is_used == False,
+        VerificationCode.expires_at > datetime.utcnow()
+    ).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification code. Please verify your email first."
+        )
+
+    # Mark verification code as used
+    record.is_used = True
 
     hashed_pw = get_password_hash(user_in.password)
-    new_user = User(email=user_in.email, password_hash=hashed_pw)
+    new_user = User(email=clean_email, password_hash=hashed_pw)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
