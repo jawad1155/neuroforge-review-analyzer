@@ -218,4 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Environment secrets and API Keys
 .env
+.env.*
+!.env.example
+backend/.env
+*.env
+*.db
+*.sqlite3
+

@@ -7,11 +7,20 @@ from sqlalchemy.orm import sessionmaker, relationship
 from dotenv import load_dotenv
 from pathlib import Path
 
-# Load env
-ENV_PATH = Path(__file__).resolve().parent / ".env"
-load_dotenv(dotenv_path=ENV_PATH)
+# Load environment variables (.env in root or backend/.env)
+root_env = Path(__file__).resolve().parent.parent / ".env"
+backend_env = Path(__file__).resolve().parent / ".env"
+if root_env.exists():
+    load_dotenv(dotenv_path=root_env)
+if backend_env.exists():
+    load_dotenv(dotenv_path=backend_env)
+load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/neuroforge")
+# Determine default database path (use /tmp on Vercel serverless)
+is_vercel = bool(os.getenv("VERCEL"))
+default_db = "sqlite:////tmp/neuroforge.db" if is_vercel else "sqlite:///./neuroforge.db"
+
+DATABASE_URL = os.getenv("DATABASE_URL", default_db)
 
 # Attempt connection to Postgres, fallback smoothly to SQLite if unreachable
 try:
@@ -21,10 +30,11 @@ try:
             pass
         engine = temp_engine
     else:
-        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+        connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+        engine = create_engine(DATABASE_URL, connect_args=connect_args)
 except Exception as e:
-    print(f"Primary database connection not ready ({e}). Falling back to local SQLite database.")
-    DATABASE_URL = "sqlite:///./neuroforge.db"
+    print(f"Primary database connection not ready ({e}). Falling back to SQLite database.")
+    DATABASE_URL = default_db
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

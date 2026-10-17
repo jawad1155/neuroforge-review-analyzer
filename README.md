@@ -82,12 +82,18 @@ pip install -r requirements.txt
 ```
 
 ### 3. Environment Configuration
-Create or verify `backend/.env`:
+Copy the template environment file and set your keys:
+```bash
+cp .env.example .env
+```
+In your `.env` (or Vercel Project Settings > Environment Variables):
 ```env
 AMD_RADEON_API_KEY=your_amd_key_here
 EVOLUS_WORKSPACE_ID=5f96b97d-e488-44dc-973d-09c30c5625aa
+EVOLUS_AGENT_ID=aa475004-2f3e-4b8c-93cd-0676450c5058
 EVOLUS_API_KEY=your_evolus_api_key_if_available
 DATABASE_URL=sqlite:///./neuroforge.db
+SECRET_KEY=your_random_secret_key
 ```
 
 ### 4. Run the Server
@@ -95,6 +101,21 @@ DATABASE_URL=sqlite:///./neuroforge.db
 python -m uvicorn backend.main:app --reload --port 8000
 ```
 Open **`http://localhost:8000`** in your browser.
+
+---
+
+## ☁️ Vercel Deployment
+
+NeuroForge is pre-configured for **Vercel** with zero-config serverless FastAPI routing via [`vercel.json`](vercel.json) and [`api/index.py`](api/index.py):
+1. Import this repository into your Vercel Dashboard.
+2. In **Project Settings ➔ Environment Variables**, add:
+   * `AMD_RADEON_API_KEY`
+   * `EVOLUS_WORKSPACE_ID`
+   * `EVOLUS_AGENT_ID`
+   * `EVOLUS_API_KEY`
+   * `SECRET_KEY`
+   * `DATABASE_URL` *(optional, defaults to SQLite `/tmp/neuroforge.db` or your Supabase PostgreSQL URL)*
+3. Deploy! Vercel automatically serves the responsive frontend and routes API endpoints (`/health`, `/analyze`, `/ask`, `/evolus/info`) to the serverless Python handler.
 
 ---
 

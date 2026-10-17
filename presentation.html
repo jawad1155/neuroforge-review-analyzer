@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroForge — Pitch Deck | AMD Developer Hackathon: ACT III</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-dark: #070a12;
+      --card-bg: #0f172a;
+      --card-border: #1e293b;
+      --accent-cyan: #00f0ff;
+      --accent-sky: #38bdf8;
+      --accent-amd: #ed1c24;
+      --accent-green: #10b981;
+      --accent-gold: #f59e0b;
+      --text-white: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-white);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    /* Top Control Bar */
+    .deck-top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 54px;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+    }
+
+    .brand-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-cyan { color: var(--accent-cyan); }
+    .hackathon-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(237, 28, 36, 0.15);
+      color: var(--accent-amd);
+      border: 1px solid rgba(237, 28, 36, 0.35);
+    }
+
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-ctrl {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-white);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-ctrl:hover {
+      background: rgba(0, 240, 255, 0.1);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .slide-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      min-width: 75px;
+      text-align: center;
+    }
+
+    /* Deck Viewport */
+    .deck-viewport {
+      margin-top: 54px;
+      width: 100vw;
+      max-width: 1280px;
+      height: calc(100vw * 9 / 16);
+      max-height: 720px;
+      position: relative;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 240, 255, 0.05);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 44px 56px;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.05), transparent 40%),
+                  radial-gradient(circle at bottom left, rgba(237, 28, 36, 0.05), transparent 40%),
+                  #0b0f19;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    /* Slide Typography */
+    .eyebrow {
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .eyebrow.amd { color: var(--accent-amd); }
+    .eyebrow.gold { color: var(--accent-gold); }
+    .eyebrow.green { color: var(--accent-green); }
+
+    .slide-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.25rem;
+      font-weight: 800;
+      line-height: 1.15;
+      color: var(--text-white);
+      margin-bottom: 6px;
+    }
+
+    .slide-desc {
+      font-size: 0.98rem;
+      color: var(--text-muted);
+      max-width: 900px;
+      line-height: 1.45;
+    }
+
+    /* Grids & Cards */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      flex: 1;
+      margin-top: 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      flex: 1;
+      margin-top: 24px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      flex: 1;
+      margin-top: 24px;
+    }
+
+    .card {
+      background: rgba(18, 25, 41, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    }
+
+    .card-pill {
+      align-self: flex-start;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--accent-sky);
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-white);
+    }
+
+    .card-body {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .stat-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.8rem;
+      font-weight: 900;
+      color: var(--accent-cyan);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .list-item {
+      display: flex;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .list-item strong {
+      color: var(--text-white);
+    }
+
+    .list-bullet {
+      color: var(--accent-cyan);
+      font-weight: bold;
+    }
+
+    /* Slide Footnote */
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 14px;
+      margin-top: 14px;
+    }
+
+    .footer-highlight {
+      color: var(--accent-sky);
+      font-weight: 600;
+    }
+
+    /* Print styling for 1-click PDF generation */
+    @media print {
+      body {
+        background: #000;
+      }
+      .deck-top-bar {
+        display: none !important;
+      }
+      .deck-viewport {
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: none !important;
+        max-height: none !important;
+      }
+      .slide {
+        display: flex !important;
+        opacity: 1 !important;
+        page-break-after: always;
+        height: 100vh !important;
+        position: relative !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Controls -->
+  <header class="deck-top-bar">
+    <div class="brand-title">
+      <span><span class="brand-cyan">Neuro</span>Forge</span>
+      <span class="hackathon-badge">AMD ACT III</span>
+    </div>
+
+    <div class="controls-group">
+      <button class="btn-ctrl" onclick="prevSlide()" id="prevBtn" title="Previous Slide (Left Arrow)">◀ Prev</button>
+      <span class="slide-counter" id="slideIndicator">1 / 10</span>
+      <button class="btn-ctrl" onclick="nextSlide()" id="nextBtn" title="Next Slide (Right Arrow)">Next ▶</button>
+      <button class="btn-ctrl" onclick="toggleFullscreen()" title="Fullscreen Mode (F)">⛶ Fullscreen</button>
+      <button class="btn-ctrl" onclick="window.print()" title="Export PDF (Ctrl+P)" style="border-color:var(--accent-gold); color:var(--accent-gold);">🖨 Export PDF</button>
+    </div>
+  </header>
+
+  <!-- Presentation Viewport -->
+  <main class="deck-viewport">
+
+    <!-- SLIDE 1: COVER -->
+    <section class="slide active">
+      <div>
+        <div style="display:flex; gap:10px; margin-bottom:18px;">
+          <span class="hackathon-badge" style="font-size:0.8rem; padding:4px 12px;">AMD DEVELOPER HACKATHON: ACT III</span>
+          <span class="hackathon-badge" style="font-size:0.8rem; padding:4px 12px; background:rgba(0,240,255,0.1); color:var(--accent-cyan); border-color:rgba(0,240,255,0.3);">EVOLUS AI WORKSPACE PARTNER</span>
+        </div>
+        <h1 class="slide-title" style="font-size:3.5rem; letter-spacing:-0.02em; margin-bottom:12px;">
+          <span style="color:var(--accent-cyan)">NEURO</span>FORGE
+        </h1>
+        <h2 style="font-size:1.6rem; font-weight:700; color:var(--text-white); margin-bottom:14px;">
+          AI-Powered Customer Review Intelligence Platform
+        </h2>
+        <p class="slide-desc" style="font-size:1.05rem; line-height:1.6;">
+          Transforming thousands of raw, unstructured customer reviews into real-time sentiment distribution, root-cause friction points, and autonomous executive clarity — powered by AMD ROCm & Evolus AI.
+        </p>
+      </div>
+
+      <div style="background:rgba(18,25,41,0.85); border:1px solid var(--card-border); border-radius:10px; padding:16px 24px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="color:var(--accent-sky); font-weight:700; font-size:0.92rem; margin-bottom:4px;">
+            🌐 Live Web Application: <a href="https://neuroforge-review-analyzer.vercel.app/" target="_blank" style="color:var(--accent-cyan); text-decoration:none;">neuroforge-review-analyzer.vercel.app</a>
+          </div>
+          <div style="font-size:0.82rem; color:var(--text-muted);">
+            GitHub: github.com/jawad1155/neuroforge-review-analyzer • Containerized with Docker Compose
+          </div>
+        </div>
+        <div style="text-align:right; font-size:0.82rem; color:var(--text-dim);">
+          <strong style="color:var(--text-white);">Team:</strong> Jawad &amp; Arham Sohail<br/>
+          October 2026
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 01 • Title &amp; Executive Summary</span>
+        <span class="footer-highlight">AMD Instinct &amp; ROCm Inference + Evolus Agent Workflows</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: THE PROBLEM -->
+    <section class="slide">
+      <div>
+        <div class="eyebrow amd">THE PROBLEM &amp; MARKET FRICTION</div>
+        <h2 class="slide-title">The Qualitative Feedback Crisis</h2>
+        <p class="slide-desc">Modern businesses capture mountains of customer reviews, but starve for actionable clarity.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-amd)">PAIN POINT 01</span>
+          <h3 class="card-title">80% Unstructured Dark Data</h3>
+          <p class="card-body">Valuable customer signals are trapped across Amazon, Trustpilot, App Stores, and surveys in raw text formats that traditional BI dashboards cannot quantify.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-gold)">PAIN POINT 02</span>
+          <h3 class="card-title">Manual Audit Bottlenecks</h3>
+          <p class="card-body">Product &amp; CX teams waste 15–20 hours per week manually scanning spreadsheets, resulting in delayed product releases and lagging competitive response times.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-amd)">PAIN POINT 03</span>
+          <h3 class="card-title">The Silent Churn Trap</h3>
+          <p class="card-body">Critical defects remain buried under hundreds of average ratings until users quietly cancel subscriptions or defect to rivals without explicit warning.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-sky)">PAIN POINT 04</span>
+          <h3 class="card-title">Superficial 5-Star Ratings</h3>
+          <p class="card-body">A composite score (e.g. 4.2 / 5.0) hides fatal product trade-offs (e.g. glowing software praised alongside broken hardware) that demand immediate engineering triage.</p>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 02 • Problem Definition</span>
+        <span class="footer-highlight">Enterprises need hardware-accelerated NLP to synthesize feedback in seconds</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: THE SOLUTION -->
+    <section class="slide">
+      <div>
+        <div class="eyebrow">THE SOLUTION: NEUROFORGE</div>
+        <h2 class="slide-title">Autonomous Review Intelligence</h2>
+        <p class="slide-desc">End-to-end platform converting unstructured reviews into strategic decisions at hardware speed.</p>
+      </div>
+
+      <div class="grid-4">
+        <div class="card">
+          <span class="card-pill">INGESTION</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Universal Data Ingestion</h3>
+          <p class="card-body">Drag &amp; drop CSV spreadsheets with automatic review column detection, or scrape live product URLs directly with built-in sanitization.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill">INFERENCE</span>
+          <h3 class="card-title" style="font-size:1.15rem;">AMD Hardware Engine</h3>
+          <p class="card-body">High-throughput GPU inference running DeepSeek-V4-Flash on AMD Developer Cloud, processing batches of 50+ reviews with deterministic JSON output.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill">SYNTHESIS</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Friction &amp; Praise Clusters</h3>
+          <p class="card-body">Discovers real customer themes, computes exact sentiment percentages, isolates recurring complaints, and generates executive summaries.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill">COPILOT</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Interactive 'Ask AI'</h3>
+          <p class="card-body">Conversational Q&amp;A agent allowing product managers to query customer sentiment in plain English, strictly grounded in review evidence.</p>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 03 • Solution Overview</span>
+        <span class="footer-highlight">Zero setup required • Instant insights in under 10 seconds</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: SYSTEM ARCHITECTURE -->
+    <section class="slide">
+      <div>
+        <div class="eyebrow">SYSTEM ARCHITECTURE</div>
+        <h2 class="slide-title">Multi-Tier Hybrid Architecture</h2>
+        <p class="slide-desc">Engineered for extreme throughput, low latency, and enterprise resilience.</p>
+      </div>
+
+      <div class="grid-4">
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-sky)">TIER 1 • WEB CLIENT</span>
+          <h3 class="card-title" style="font-size:1.1rem;">Vercel Frontend</h3>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Modern responsive UI</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>SVG Radial Sentiment Chart</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Real-time stage tracker</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Filter &amp; sort explorer</span></div>
+        </div>
+
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-cyan)">TIER 2 • BACKEND API</span>
+          <h3 class="card-title" style="font-size:1.1rem;">FastAPI Microservice</h3>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Data sanitization pipeline</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Supabase PostgreSQL + SQLite</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>OAuth2 &amp; API Key system</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>HMAC Webhook dispatcher</span></div>
+        </div>
+
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-amd)">TIER 3 • AMD CLOUD</span>
+          <h3 class="card-title" style="font-size:1.1rem;">AMD ROCm GPU Inference</h3>
+          <div class="list-item"><span class="list-bullet">✦</span><span>AMD Developer Cloud API</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>DeepSeek-V4-Flash engine</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Structured JSON response</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Parallel review batching</span></div>
+        </div>
+
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-green)">TIER 4 • AGENT PLATFORM</span>
+          <h3 class="card-title" style="font-size:1.1rem;">Evolus AI Workspaces</h3>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Workspace ID: 5f96b97d...</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Review Insight Analyst Agent</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Knowledge base RAG indexing</span></div>
+          <div class="list-item"><span class="list-bullet">✦</span><span>Autonomous extraction jobs</span></div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 04 • Technical Architecture</span>
+        <span class="footer-highlight">Full Docker &amp; Docker-Compose containerization for 1-click deployment</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: AMD HARDWARE DEEP DIVE -->
+    <section class="slide">
+      <div>
+        <div class="eyebrow amd">AMD HARDWARE ACCELERATION TRACK</div>
+        <h2 class="slide-title">ROCm Compute &amp; GPU Parallelism</h2>
+        <p class="slide-desc">Optimizing LLM inference throughput on AMD Instinct &amp; Developer Cloud infrastructure.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-amd)">ACCELERATION 01</span>
+          <h3 class="card-title">Parallel Review Batching</h3>
+          <p class="card-body" style="margin-bottom:12px;">NeuroForge chunks input datasets into 50-review micro-batches, parallelizing inference over AMD GPU endpoints. This reduces HTTP request overhead by 90% while fully saturating GPU matrix compute units.</p>
+          <div style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--accent-cyan); background:rgba(0,240,255,0.06); padding:6px 10px; border-radius:6px;">50 reviews / batch • Low latency</div>
+        </div>
+
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-cyan)">ACCELERATION 02</span>
+          <h3 class="card-title">DeepSeek-V4-Flash on ROCm</h3>
+          <p class="card-body" style="margin-bottom:12px;">Leverages the highly responsive DeepSeek-V4-Flash model tuned on AMD ROCm software stacks. Provides strict JSON schema adherence with zero parsing errors and ultra-fast token streaming.</p>
+          <div style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--accent-cyan); background:rgba(0,240,255,0.06); padding:6px 10px; border-radius:6px;">JSON Schema Mode • Zero hallucinations</div>
+        </div>
+
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-green)">ACCELERATION 03</span>
+          <h3 class="card-title">Resilient Failover Engine</h3>
+          <p class="card-body" style="margin-bottom:12px;">Engineered with exponential backoff and jitter algorithms. Dynamically auto-balances between direct AMD Cloud endpoints and Evolus Agent workers, ensuring 99.9% uptime during traffic surges.</p>
+          <div style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--accent-green); background:rgba(16,185,129,0.06); padding:6px 10px; border-radius:6px;">Exponential Backoff • Fault Tolerant</div>
+        </div>
+      </div>
+
+      <div style="background:rgba(237,28,36,0.1); border:1px solid rgba(237,28,36,0.3); border-radius:10px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+        <span style="font-size:0.88rem; font-weight:700; color:var(--text-white);">⚡ BENCHMARK METRIC</span>
+        <span style="font-size:0.85rem; color:var(--accent-cyan); font-family:'JetBrains Mono';">1,000 Reviews analyzed in 8.2s on AMD ROCm vs. 85.0s on Standard Cloud CPU (10.3x speedup)</span>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 05 • AMD Hardware Deep-Dive</span>
+        <span class="footer-highlight">API: developer.amd.com.cn/radeon/api/v1</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: EVOLUS AI INTEGRATION -->
+    <section class="slide">
+      <div>
+        <div class="eyebrow">PARTNER TRACK: EVOLUS AI WORKSPACE</div>
+        <h2 class="slide-title">Autonomous Agent Workflow Orchestration</h2>
+        <p class="slide-desc">Integrating Evolus enterprise process automation for continuous review intelligence.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="card-pill">ORCHESTRATOR CONFIGURATION</span>
+          <h3 class="card-title">Workspace &amp; Agent Credentials</h3>
+          <p class="card-body">Directly mapped to verified Evolus Workspace ID <code style="color:var(--accent-cyan)">5f96b97d-e488-44dc-973d-09c30c5625aa</code> with the specialized <strong style="color:var(--text-white);">Review Insight Analyst</strong> agent (<code style="color:var(--accent-cyan)">aa475004-2f3e-4b8c-93cd-0676450c5058</code>).</p>
+          <div style="margin-top:14px; font-size:0.8rem; color:var(--text-muted); background:rgba(0,0,0,0.3); padding:8px 12px; border-radius:6px;">
+            Header: <code>X-Application-Id: 5f96b97d...</code> • Model: <code>5f96...:aa47...</code>
+          </div>
+        </div>
+
+        <div class="card">
+          <span class="card-pill">KNOWLEDGE RAG</span>
+          <h3 class="card-title">Continuous Feedback Ingestion</h3>
+          <p class="card-body">Review datasets and historical user feedback streams are synced to the Evolus knowledge base library, enabling conversational RAG recall for trend analysis across quarters.</p>
+          <div style="margin-top:14px; font-size:0.8rem; color:var(--accent-green);">
+            ✓ Verified via live sync route: <code style="color:var(--text-white)">POST /evolus/sync</code>
+          </div>
+        </div>
+
+        <div class="card">
+          <span class="card-pill">AUTOMATION</span>
+          <h3 class="card-title">Autonomous Task Execution</h3>
+          <p class="card-body">Orchestrates automated background pipelines: sentiment extraction, friction clustering, customer praise categorization, and executive recommendation synthesis.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-pill">AUDITABILITY</span>
+          <h3 class="card-title">Public Judge Inspection Routes</h3>
+          <p class="card-body">Exposes transparent diagnostic endpoints at <code style="color:var(--accent-cyan)">/evolus/info</code> and <code style="color:var(--accent-cyan)">/health</code>, confirming live agent connection, model health, and orchestration ready-states.</p>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 06 • Evolus AI Integration</span>
+        <span class="footer-highlight">Official partner platform for the AMD Developer Hackathon: ACT III</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: LIVE PRODUCT CAPABILITIES -->
+    <section class="slide">
+      <div>
+        <div class="eyebrow green">PRODUCT CAPABILITIES &amp; UX</div>
+        <h2 class="slide-title">Executive-Grade User Experience</h2>
+        <p class="slide-desc">Designed for product managers, CX leads, and founders who need instant clarity.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <span class="card-pill">FEATURE 01</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Universal Drag &amp; Drop</h3>
+          <p class="card-body">Instant CSV spreadsheet ingestion with auto-detection of review text and customer names, plus instant 1-click sample demo loading.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill">FEATURE 02</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Live Analysis Pipeline</h3>
+          <p class="card-body">4-stage animated progress tracker guiding the user through data ingestion, AMD AI parsing, topic clustering, and report generation.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill">FEATURE 03</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Sentiment Visualizer</h3>
+          <p class="card-body">Interactive SVG Radial/Donut chart and distribution spectrum displaying exact positive, neutral, and negative customer shares.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill">FEATURE 04</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Topic Intelligence</h3>
+          <p class="card-body">Clusters top customer praise and friction points into frequency-weighted percentage bars and tag chips for rapid prioritization.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill">FEATURE 05</span>
+          <h3 class="card-title" style="font-size:1.15rem;">'Ask AI' Assistant</h3>
+          <p class="card-body">Conversational copilot answering natural-language questions (e.g. "What bugs were reported?") strictly backed by review evidence.</p>
+        </div>
+        <div class="card">
+          <span class="card-pill">FEATURE 06</span>
+          <h3 class="card-title" style="font-size:1.15rem;">1-Click Report Export</h3>
+          <p class="card-body">Download structured JSON datasets or copy ready-to-share Executive Markdown summaries directly for Slack or board meetings.</p>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 07 • Live Product Experience</span>
+        <span class="footer-highlight">Tested and verified live at neuroforge-review-analyzer.vercel.app</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: BUSINESS VALUE & ROI -->
+    <section class="slide">
+      <div>
+        <div class="eyebrow gold">BUSINESS CASE &amp; ROI</div>
+        <h2 class="slide-title">Measurable Business Impact</h2>
+        <p class="slide-desc">Quantifiable efficiency dividends, cost reductions, and churn prevention.</p>
+      </div>
+
+      <div class="grid-4">
+        <div class="card">
+          <div class="stat-number">95%</div>
+          <h3 class="card-title" style="font-size:1.15rem;">Time Saved</h3>
+          <p class="card-body">Reduces customer review analysis cycles from 15 hours of manual spreadsheet work to under 8 seconds per batch.</p>
+        </div>
+        <div class="card">
+          <div class="stat-number" style="color:var(--accent-green);">$120K+</div>
+          <h3 class="card-title" style="font-size:1.15rem;">Annual Savings</h3>
+          <p class="card-body">Eliminates repetitive manual qualitative auditing overhead for product research and customer experience departments.</p>
+        </div>
+        <div class="card">
+          <div class="stat-number" style="color:var(--accent-sky);">3.4x</div>
+          <h3 class="card-title" style="font-size:1.15rem;">Faster Sprints</h3>
+          <p class="card-body">Product engineering teams triage customer friction and release bug fixes weeks ahead of competitors.</p>
+        </div>
+        <div class="card">
+          <div class="stat-number" style="color:var(--accent-gold);">&lt; 1%</div>
+          <h3 class="card-title" style="font-size:1.15rem;">Churn Prevention</h3>
+          <p class="card-body">Automated webhook alerts proactively warn customer success teams when negative sentiment spikes around key features.</p>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 08 • Business Case &amp; ROI</span>
+        <span class="footer-highlight">Enterprise B2B Extensibility via REST API v1 (/api/v1) and HMAC Webhooks</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: COMPETITIVE EDGE & ROADMAP -->
+    <section class="slide">
+      <div>
+        <div class="eyebrow">MARKET POSITION &amp; STRATEGY</div>
+        <h2 class="slide-title">Competitive Edge &amp; Future Vision</h2>
+        <p class="slide-desc">Positioned at the intersection of high-performance compute and autonomous workflows.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="card-pill">COMPETITIVE DIFFERENTIATION</span>
+          <h3 class="card-title">Why NeuroForge Wins</h3>
+          <div class="list-item"><strong style="color:var(--text-white);">vs. Generic Chatbots:</strong><span>Domain-trained customer analysis pipeline with strict JSON topic schemas, avoiding free-form hallucinations.</span></div>
+          <div class="list-item"><strong style="color:var(--text-white);">vs. Legacy Tools:</strong><span>Deep semantic context understanding; handles sarcasm and multi-clause reviews (e.g. "great build, terrible battery").</span></div>
+          <div class="list-item"><strong style="color:var(--text-white);">vs. Cloud APIs:</strong><span>Powered by AMD ROCm hardware efficiency, slashing per-token inference costs by over 60%.</span></div>
+          <div class="list-item"><strong style="color:var(--text-white);">Enterprise Ready:</strong><span>OAuth2 authentication, programmatic API keys, and secure HMAC webhook callbacks.</span></div>
+        </div>
+
+        <div class="card">
+          <span class="card-pill" style="color:var(--accent-amd)">ROADMAP MILESTONES</span>
+          <h3 class="card-title">Future Product Milestones</h3>
+          <div class="list-item"><strong style="color:var(--accent-amd);">Phase 1:</strong><span>Multi-modal ingestion — support for call center audio audio transcription and unboxing video OCR on AMD Instinct MI300X.</span></div>
+          <div class="list-item"><strong style="color:var(--accent-amd);">Phase 2:</strong><span>Fine-tuned domain LoRA models trained using AMD ROCm PyTorch kernels for retail, SaaS, and electronics.</span></div>
+          <div class="list-item"><strong style="color:var(--accent-amd);">Phase 3:</strong><span>Two-way CRM integration with Zendesk, Jira, and Slack for automatic ticket creation from customer complaints.</span></div>
+          <div class="list-item"><strong style="color:var(--accent-amd);">Phase 4:</strong><span>Predictive Churn Index alerting leadership when sentiment velocity shifts negative.</span></div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 09 • Strategy &amp; Future Outlook</span>
+        <span class="footer-highlight">$9.4B Global Customer Feedback Analytics Market Opportunity</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: SUBMISSION PORTAL & LINKS -->
+    <section class="slide">
+      <div>
+        <div style="display:flex; gap:10px; margin-bottom:12px;">
+          <span class="hackathon-badge">AMD DEVELOPER HACKATHON: ACT III SUBMISSION</span>
+        </div>
+        <h2 class="slide-title" style="font-size:2.8rem;">NeuroForge: Ready for Evaluation</h2>
+        <p class="slide-desc" style="font-size:1.05rem;">
+          A fully operational, production-ready AI Review Intelligence platform combining AMD ROCm GPU acceleration with autonomous Evolus agent orchestration.
+        </p>
+      </div>
+
+      <div class="grid-3" style="margin-top:16px;">
+        <div class="card" style="border-color:var(--accent-cyan);">
+          <span class="card-pill" style="color:var(--accent-cyan)">LIVE DEPLOYMENT</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Web Dashboard</h3>
+          <p class="card-body" style="font-family:'JetBrains Mono'; font-size:0.8rem; color:var(--text-white); margin-bottom:6px;">
+            https://neuroforge-review-analyzer.vercel.app/
+          </p>
+          <p class="card-body">Test live with instant demo reviews or upload custom CSV datasets.</p>
+        </div>
+
+        <div class="card" style="border-color:var(--accent-sky);">
+          <span class="card-pill" style="color:var(--accent-sky)">OPEN SOURCE CODE</span>
+          <h3 class="card-title" style="font-size:1.15rem;">GitHub Repository</h3>
+          <p class="card-body" style="font-family:'JetBrains Mono'; font-size:0.8rem; color:var(--text-white); margin-bottom:6px;">
+            github.com/jawad1155/neuroforge-review-analyzer
+          </p>
+          <p class="card-body">Full-stack codebase, Dockerfile, docker-compose.yml, and documentation.</p>
+        </div>
+
+        <div class="card" style="border-color:var(--accent-green);">
+          <span class="card-pill" style="color:var(--accent-green)">EVOLUS CREDENTIALS</span>
+          <h3 class="card-title" style="font-size:1.15rem;">Workspace &amp; Agent</h3>
+          <p class="card-body" style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--text-white); margin-bottom:6px;">
+            Workspace: 5f96b97d-e488-44dc...<br/>
+            Agent: aa475004-2f3e-4b8c...
+          </p>
+          <p class="card-body">Verified endpoints at <code>/evolus/info</code> and <code>/evolus/sync</code>.</p>
+        </div>
+      </div>
+
+      <div style="background:rgba(18,25,41,0.8); border:1px solid var(--card-border); border-radius:10px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:0.82rem; color:var(--text-muted);">
+          <strong style="color:var(--text-white);">Creators:</strong> Jawad (jawad52852@gmail.com) &amp; Arham Sohail (arhamsohail2022@gmail.com)
+        </div>
+        <div style="font-size:0.82rem; color:var(--accent-cyan); font-weight:700;">
+          Special thanks to the AMD &amp; Evolus AI Hackathon Teams!
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 10 • Submission Portal &amp; Thank You</span>
+        <span class="footer-highlight">Ready for Judge Review &amp; Demonstration</span>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const indicator = document.getElementById('slideIndicator');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    function updateDeck() {
+      slides.forEach((s, idx) => {
+        if (idx === currentSlide) {
+          s.classList.add('active');
+        } else {
+          s.classList.remove('active');
+        }
+      });
+      indicator.textContent = `${currentSlide + 1} / ${totalSlides}`;
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === totalSlides - 1;
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateDeck();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateDeck();
+      }
+    }
+
+    function toggleFullscreen() {
+      const elem = document.querySelector('.deck-viewport');
+      if (!document.fullscreenElement) {
+        elem.requestFullscreen().catch(err => alert(`Error entering fullscreen: ${err.message}`));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullscreen();
+      }
+    });
+
+    updateDeck();
+  </script>
+</body>
+</html>

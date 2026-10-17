@@ -10,9 +10,14 @@ import pandas as pd
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Load backend/.env
-ENV_PATH = Path(__file__).resolve().parent / ".env"
-load_dotenv(dotenv_path=ENV_PATH)
+# Load environment variables (.env in root or backend/.env)
+root_env = Path(__file__).resolve().parent.parent / ".env"
+backend_env = Path(__file__).resolve().parent / ".env"
+if root_env.exists():
+    load_dotenv(dotenv_path=root_env)
+if backend_env.exists():
+    load_dotenv(dotenv_path=backend_env)
+load_dotenv()
 
 class ReviewAnalyzer:
     """Customer-review CSV analyzer powered by AMD Radeon API."""
@@ -20,10 +25,10 @@ class ReviewAnalyzer:
     def __init__(self):
         self.api_key = os.getenv("AMD_RADEON_API_KEY")
         # Defaulting to the recommended fast model from AMD docs
-        self.model_name = "DeepSeek-V4-Flash"
-        self.evolus_workspace_id = os.getenv("EVOLUS_WORKSPACE_ID", "5f96b97d-e488-44dc-973d-09c30c5625aa")
-        self.evolus_agent_id = os.getenv("EVOLUS_AGENT_ID", "aa475004-2f3e-4b8c-93cd-0676450c5058")
-        self.evolus_agent_name = "Review Insight Analyst"
+        self.model_name = os.getenv("AMD_MODEL_NAME", "DeepSeek-V4-Flash")
+        self.evolus_workspace_id = os.getenv("EVOLUS_WORKSPACE_ID", "")
+        self.evolus_agent_id = os.getenv("EVOLUS_AGENT_ID", "")
+        self.evolus_agent_name = os.getenv("EVOLUS_AGENT_NAME", "Review Insight Analyst")
         self.evolus_api_key = os.getenv("EVOLUS_API_KEY", "")
         self.evolus_base_url = os.getenv("EVOLUS_API_BASE_URL", "https://api.evolus.ai/api/v1")
 

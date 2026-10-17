@@ -14,6 +14,10 @@
   const CONFIG = {
     API_BASE: (() => {
       if (window.NEUROFORGE_API_BASE) return window.NEUROFORGE_API_BASE;
+      try {
+        const customBase = localStorage.getItem("neuroforge_api_base");
+        if (customBase) return customBase.replace(/\/+$/, "");
+      } catch (e) {}
       const host = window.location.hostname;
       const port = window.location.port;
       if (host === "localhost" || host === "127.0.0.1") {
