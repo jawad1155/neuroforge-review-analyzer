@@ -1178,12 +1178,124 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
   function initAuthModal() {
     if (!dom.authModal) return;
 
-    const openModal = () => {
-      dom.authModal.classList.add("is-open");
-      if (dom.authEmail) dom.authEmail.focus();
+    let isSignUp = false;
+    let signupStep = 1; // 1: Email + Password, 2: 6-Digit Email Verification Code
+    let pendingSignup = { email: "", password: "" };
+    let resendTimer = null;
+
+    const setAuthAlert = (message, type = "error") => {
+      if (!dom.authAlert) return;
+      if (!message) {
+        dom.authAlert.style.display = "none";
+        dom.authAlert.textContent = "";
+        dom.authAlert.className = "auth-alert-box";
+        return;
+      }
+      dom.authAlert.textContent = message;
+      dom.authAlert.className = `auth-alert-box is-${type}`;
+      dom.authAlert.style.display = "block";
     };
 
-    const closeModal = () => dom.authModal.classList.remove("is-open");
+    const setSubmitButton = (loading, text) => {
+      if (!dom.authSubmitBtn) return;
+      dom.authSubmitBtn.disabled = loading;
+      if (loading) {
+        dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>${text}</span>`;
+      } else {
+        dom.authSubmitBtn.innerHTML = `<span id="auth-submit-text">${text}</span>`;
+      }
+    };
+
+    const resetAuthForm = (clearInputs = true) => {
+      setAuthAlert(null);
+      clearInterval(resendTimer);
+      if (clearInputs) {
+        if (dom.authForm) dom.authForm.reset();
+        if (dom.authEmail) dom.authEmail.value = "";
+        if (dom.authPassword) dom.authPassword.value = "";
+        if (dom.authCode) dom.authCode.value = "";
+        pendingSignup = { email: "", password: "" };
+      }
+      signupStep = 1;
+      if (dom.authResendBtn) {
+        dom.authResendBtn.disabled = false;
+        dom.authResendBtn.textContent = "Resend code";
+      }
+      const label = isSignUp ? "Send Verification Code →" : "Sign In";
+      setSubmitButton(false, label);
+    };
+
+    const updateAuthModeUI = () => {
+      setAuthAlert(null);
+      if (isSignUp) {
+        if (signupStep === 1) {
+          if (dom.authTabs) dom.authTabs.style.display = "flex";
+          if (dom.tabSignup) dom.tabSignup.classList.add("is-active");
+          if (dom.tabSignin) dom.tabSignin.classList.remove("is-active");
+          if (dom.authEmailGroup) dom.authEmailGroup.style.display = "flex";
+          if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "flex";
+          if (dom.authCodeGroup) dom.authCodeGroup.style.display = "none";
+          if (dom.authDemoBtn) dom.authDemoBtn.style.display = "block";
+          if (dom.authModalTitle) dom.authModalTitle.textContent = "Create Your Account";
+          if (dom.authModalSub) dom.authModalSub.textContent = "Enter your work email and password to receive a verification code.";
+          setSubmitButton(false, "Send Verification Code →");
+          if (dom.authEmail) dom.authEmail.required = true;
+          if (dom.authPassword) dom.authPassword.required = true;
+          if (dom.authCode) dom.authCode.required = false;
+        } else {
+          // Step 2: Verification Code
+          if (dom.authTabs) dom.authTabs.style.display = "none";
+          if (dom.authEmailGroup) dom.authEmailGroup.style.display = "none";
+          if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "none";
+          if (dom.authCodeGroup) dom.authCodeGroup.style.display = "flex";
+          if (dom.authDemoBtn) dom.authDemoBtn.style.display = "none";
+          if (dom.authModalTitle) dom.authModalTitle.textContent = "Verify Your Email";
+          if (dom.authModalSub) {
+            dom.authModalSub.innerHTML = `Enter the 6-digit code sent to <strong>${pendingSignup.email}</strong>`;
+          }
+          setSubmitButton(false, "Verify & Complete Signup");
+          if (dom.authEmail) dom.authEmail.required = false;
+          if (dom.authPassword) dom.authPassword.required = false;
+          if (dom.authCode) {
+            dom.authCode.required = true;
+            dom.authCode.value = "";
+            setTimeout(() => dom.authCode.focus(), 60);
+          }
+        }
+      } else {
+        // Sign In
+        signupStep = 1;
+        if (dom.authTabs) dom.authTabs.style.display = "flex";
+        if (dom.tabSignin) dom.tabSignin.classList.add("is-active");
+        if (dom.tabSignup) dom.tabSignup.classList.remove("is-active");
+        if (dom.authEmailGroup) dom.authEmailGroup.style.display = "flex";
+        if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "flex";
+        if (dom.authCodeGroup) dom.authCodeGroup.style.display = "none";
+        if (dom.authDemoBtn) dom.authDemoBtn.style.display = "block";
+        if (dom.authModalTitle) dom.authModalTitle.textContent = "Welcome to NeuroForge";
+        if (dom.authModalSub) dom.authModalSub.textContent = "Sign in to sync your reviews and access past analyses.";
+        setSubmitButton(false, "Sign In");
+        if (dom.authEmail) dom.authEmail.required = true;
+        if (dom.authPassword) dom.authPassword.required = true;
+        if (dom.authCode) dom.authCode.required = false;
+      }
+    };
+
+    const openModal = () => {
+      resetAuthForm(true);
+      updateAuthModeUI();
+      dom.authModal.classList.add("is-open");
+      setTimeout(() => {
+        if (dom.authEmail && dom.authEmailGroup && dom.authEmailGroup.style.display !== "none") {
+          dom.authEmail.focus();
+        }
+      }, 60);
+    };
+
+    const closeModal = () => {
+      dom.authModal.classList.remove("is-open");
+      resetAuthForm(true);
+    };
 
     // Show/hide user profile pill and auth elements based on login state
     const showLoggedIn = (name) => {
@@ -1225,6 +1337,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
     };
 
     const showLoggedOut = () => {
+      resetAuthForm(true);
       const profilePill = $("#nav-user-profile");
       if (profilePill) profilePill.style.display = "none";
       localStorage.removeItem("neuroforge_user");
@@ -1257,80 +1370,6 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
       if (navAuthGroup) navAuthGroup.style.display = "inline-flex";
     };
 
-    let isSignUp = false;
-    let signupStep = 1; // 1: Email + Password, 2: 6-Digit Email Verification Code
-    let pendingSignup = { email: "", password: "" };
-    let resendTimer = null;
-
-    const setAuthAlert = (message, type = "error") => {
-      if (!dom.authAlert) return;
-      if (!message) {
-        dom.authAlert.style.display = "none";
-        dom.authAlert.textContent = "";
-        dom.authAlert.className = "auth-alert-box";
-        return;
-      }
-      dom.authAlert.textContent = message;
-      dom.authAlert.className = `auth-alert-box is-${type}`;
-      dom.authAlert.style.display = "block";
-    };
-
-    const updateAuthModeUI = () => {
-      setAuthAlert(null);
-      if (isSignUp) {
-        if (signupStep === 1) {
-          if (dom.authTabs) dom.authTabs.style.display = "flex";
-          if (dom.tabSignup) dom.tabSignup.classList.add("is-active");
-          if (dom.tabSignin) dom.tabSignin.classList.remove("is-active");
-          if (dom.authEmailGroup) dom.authEmailGroup.style.display = "flex";
-          if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "flex";
-          if (dom.authCodeGroup) dom.authCodeGroup.style.display = "none";
-          if (dom.authDemoBtn) dom.authDemoBtn.style.display = "block";
-          if (dom.authModalTitle) dom.authModalTitle.textContent = "Create Your Account";
-          if (dom.authModalSub) dom.authModalSub.textContent = "Enter your work email and password to receive a verification code.";
-          if (dom.authSubmitText) dom.authSubmitText.textContent = "Send Verification Code →";
-          if (dom.authEmail) dom.authEmail.required = true;
-          if (dom.authPassword) dom.authPassword.required = true;
-          if (dom.authCode) dom.authCode.required = false;
-        } else {
-          // Step 2: Verification Code
-          if (dom.authTabs) dom.authTabs.style.display = "none";
-          if (dom.authEmailGroup) dom.authEmailGroup.style.display = "none";
-          if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "none";
-          if (dom.authCodeGroup) dom.authCodeGroup.style.display = "flex";
-          if (dom.authDemoBtn) dom.authDemoBtn.style.display = "none";
-          if (dom.authModalTitle) dom.authModalTitle.textContent = "Verify Your Email";
-          if (dom.authModalSub) {
-            dom.authModalSub.innerHTML = `Enter the 6-digit code sent to <strong>${pendingSignup.email}</strong>`;
-          }
-          if (dom.authSubmitText) dom.authSubmitText.textContent = "Verify & Complete Signup";
-          if (dom.authEmail) dom.authEmail.required = false;
-          if (dom.authPassword) dom.authPassword.required = false;
-          if (dom.authCode) {
-            dom.authCode.required = true;
-            dom.authCode.value = "";
-            setTimeout(() => dom.authCode.focus(), 60);
-          }
-        }
-      } else {
-        // Sign In
-        signupStep = 1;
-        if (dom.authTabs) dom.authTabs.style.display = "flex";
-        if (dom.tabSignin) dom.tabSignin.classList.add("is-active");
-        if (dom.tabSignup) dom.tabSignup.classList.remove("is-active");
-        if (dom.authEmailGroup) dom.authEmailGroup.style.display = "flex";
-        if (dom.authPasswordGroup) dom.authPasswordGroup.style.display = "flex";
-        if (dom.authCodeGroup) dom.authCodeGroup.style.display = "none";
-        if (dom.authDemoBtn) dom.authDemoBtn.style.display = "block";
-        if (dom.authModalTitle) dom.authModalTitle.textContent = "Welcome to NeuroForge";
-        if (dom.authModalSub) dom.authModalSub.textContent = "Sign in to sync your reviews and access past analyses.";
-        if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
-        if (dom.authEmail) dom.authEmail.required = true;
-        if (dom.authPassword) dom.authPassword.required = true;
-        if (dom.authCode) dom.authCode.required = false;
-      }
-    };
-
     const startResendCooldown = () => {
       if (!dom.authResendBtn) return;
       let secondsLeft = 30;
@@ -1353,6 +1392,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
     const openSignUp = () => {
       isSignUp = true;
       signupStep = 1;
+      resetAuthForm(true);
       updateAuthModeUI();
       openModal();
     };
@@ -1360,6 +1400,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
     const openSignIn = () => {
       isSignUp = false;
       signupStep = 1;
+      resetAuthForm(true);
       updateAuthModeUI();
       openModal();
     };
@@ -1394,6 +1435,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
       dom.tabSignin.addEventListener("click", () => {
         isSignUp = false;
         signupStep = 1;
+        resetAuthForm(true);
         updateAuthModeUI();
       });
     }
@@ -1402,6 +1444,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
       dom.tabSignup.addEventListener("click", () => {
         isSignUp = true;
         signupStep = 1;
+        resetAuthForm(true);
         updateAuthModeUI();
       });
     }
@@ -1456,8 +1499,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
           // --- SIGN IN FLOW ---
           const email = dom.authEmail.value.trim().toLowerCase();
           const password = dom.authPassword.value;
-          dom.authSubmitBtn.disabled = true;
-          dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>Signing in...</span>`;
+          setSubmitButton(true, "Signing in...");
 
           try {
             const formData = new URLSearchParams();
@@ -1486,9 +1528,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
             showToast(`Welcome back, ${shortName}!`, "success");
           } catch (err) {
             setAuthAlert(err.message || "Failed to sign in. Please check your credentials.", "error");
-          } finally {
-            dom.authSubmitBtn.disabled = false;
-            if (dom.authSubmitText) dom.authSubmitText.textContent = "Sign In";
+            setSubmitButton(false, "Sign In");
           }
         } else if (signupStep === 1) {
           // --- SIGN UP STEP 1: REQUEST VERIFICATION CODE ---
@@ -1504,8 +1544,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
             return;
           }
 
-          dom.authSubmitBtn.disabled = true;
-          dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>Sending code...</span>`;
+          setSubmitButton(true, "Sending code...");
 
           try {
             const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.sendVerification, {
@@ -1531,11 +1570,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
             startResendCooldown();
           } catch (err) {
             setAuthAlert(err.message, "error");
-          } finally {
-            dom.authSubmitBtn.disabled = false;
-            if (dom.authSubmitText && signupStep === 1) {
-              dom.authSubmitText.textContent = "Send Verification Code →";
-            }
+            setSubmitButton(false, "Send Verification Code →");
           }
         } else if (signupStep === 2) {
           // --- SIGN UP STEP 2: VERIFY CODE & CREATE ACCOUNT ---
@@ -1545,8 +1580,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
             return;
           }
 
-          dom.authSubmitBtn.disabled = true;
-          dom.authSubmitBtn.innerHTML = `<span class="spinner"></span><span>Creating account...</span>`;
+          setSubmitButton(true, "Creating account...");
 
           try {
             const res = await fetch(CONFIG.API_BASE + CONFIG.ENDPOINTS.signup, {
@@ -1589,11 +1623,7 @@ ${(data.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
             showToast(`Account verified! Welcome to NeuroForge, ${shortName}!`, "success");
           } catch (err) {
             setAuthAlert(err.message, "error");
-          } finally {
-            dom.authSubmitBtn.disabled = false;
-            if (dom.authSubmitText) {
-              dom.authSubmitText.textContent = "Verify & Complete Signup";
-            }
+            setSubmitButton(false, "Verify & Complete Signup");
           }
         }
       });
