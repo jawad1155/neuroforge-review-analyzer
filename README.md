@@ -1,100 +1,60 @@
-# NeuroForge — AI Customer Review Analyzer
+# NeuroForge
 
-[![Hackathon](https://img.shields.io/badge/AMD%20Developer%20Hackathon-ACT%20III-ED1C24.svg)](https://lablab.ai)
-[![Evolus Workspace](https://img.shields.io/badge/Evolus%20Workspace-5f96b97d--e488--44dc--973d--09c30c5625aa-blue.svg)](https://app.evolus.ai)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com)
-[![Docker](https://img.shields.io/badge/Containerized-Docker%20%7C%20Compose-2496ED.svg)](https://docker.com)
+### AI Customer Review Intelligence Platform
 
-**NeuroForge** is an enterprise AI-powered customer review intelligence platform built for the **AMD Developer Hackathon: ACT III**. It transforms raw, unstructured customer reviews into real-time sentiment distribution, top customer praise, high-priority complaints, and actionable business insights.
+**Built for AMD Developer Hackathon: ACT III**
 
----
-
-## 🏛 Architecture & Hackathon Integrations
-
-NeuroForge combines **Evolus AI Agent orchestration** with **AMD high-performance hardware inference**:
-
-```
-+-----------------------------------------------------------+
-|                    Frontend Dashboard                     |
-|           (HTML5 / CSS3 / Vanilla JS / WebGL)             |
-+-----------------------------+-----------------------------+
-                              |
-                              v
-+-----------------------------------------------------------+
-|               NeuroForge FastAPI Backend                  |
-|    Data Ingestion, CSV Sanitization, Webhook Dispatch     |
-+---------------+-----------------------------+-------------+
-                |                             |
-                v                             v
-+-------------------------------+ +-------------------------+
-|     Evolus AI Workspace       | |   AMD Developer Cloud   |
-| (app.evolus.ai / Workflows)   | |  Hardware-Accelerated   |
-| ID: 5f96b97d-e488-44dc...     | |    vLLM Model Endpoint  |
-| - Review Analyzer Agent       | |  - DeepSeek-V4-Flash    |
-| - Knowledge Library RAG       | |  - ROCm Acceleration    |
-| - Automated Extraction Tasks  | |  - Low-latency batching |
-+-------------------------------+ +-------------------------+
-```
-
-### 1. Evolus AI Platform Integration
-* **Workspace ID**: `5f96b97d-e488-44dc-973d-09c30c5625aa`
-* **Agent Name**: `Review Insight Analyst`
-* **Agent ID**: `aa475004-2f3e-4b8c-93cd-0676450c5058`
-* **Agent Role**: Customer Review Sentiment, Complaint & Insight Extraction Agent.
-* **Knowledge Library**: Ingests customer review batches and CSV datasets to build contextual retrieval.
-* **REST & Agent API**: The backend communicates directly with `https://api.evolus.ai/api/v1` using `X-Application-Id` and agent execution routes.
-* **Verification Route**: Check status at `/evolus/info`.
-
-### 2. AMD Hardware Acceleration
-* **Inference Endpoint**: High-throughput AMD Developer Cloud API powered by ROCm infrastructure.
-* **Model Engine**: `DeepSeek-V4-Flash` with JSON-mode semantic parsing and retry logic.
-* **Resilient Fallback**: Auto-balancing between Evolus AI agent workflows and direct AMD cloud endpoints.
+NeuroForge turns raw customer reviews into clear, actionable intelligence.  
+Upload a CSV or drop a product URL. Get sentiment breakdown, top praise, critical complaints, and concrete recommendations — powered by Evolus AI agents and AMD Radeon inference.
 
 ---
 
-## 🚀 Quick Start (Docker - Recommended)
+## What It Actually Does
 
-The application is fully containerized for seamless evaluation:
+- **CSV Review Analysis**  
+  Upload any CSV. Auto-detects the review column, cleans the data, and runs full sentiment + topic extraction.
+
+- **Live URL Import**  
+  Paste an Amazon or Trustpilot product page. Reviews are scraped safely (SSRF-protected) and analyzed instantly.
+
+- **Conversational Q&A**  
+  Ask natural language questions about your reviews. The agent answers using the actual review context.
+
+- **Full Auth System**  
+  Email verification (Brevo), JWT login, project isolation, API keys, and webhook subscriptions.
+
+- **Real Backend Intelligence**  
+  Evolus AI Agent orchestration with AMD DeepSeek-V4-Flash fallback. JSON-mode responses with retry logic.
+
+---
+
+## Tech Stack (What’s Actually Used)
+
+| Layer              | Technology                                      |
+|--------------------|--------------------------------------------------|
+| Backend            | FastAPI + Uvicorn                               |
+| AI Inference       | AMD Radeon API (`DeepSeek-V4-Flash`) + Evolus AI Agent |
+| Database           | SQLAlchemy (SQLite / PostgreSQL)                |
+| Auth               | JWT + bcrypt + OAuth2PasswordBearer             |
+| Email              | Brevo Transactional API                         |
+| Scraping           | httpx + BeautifulSoup (Amazon + Trustpilot)     |
+| Frontend           | Vanilla HTML / CSS / JavaScript                 |
+| Deployment         | Docker + Vercel serverless                      |
+
+---
+
+## Quick Start
+
+### Option 1: Docker (Recommended)
 
 ```bash
-# Clone the repository
-git clone <repo-url>
+git clone https://github.com/jawad1155/neuroforge-review-analyzer.git
 cd neuroforge-review-analyzer
 
-# Launch container with Docker Compose
-docker compose up --build
-```
-
-The web dashboard and API will be live at:
-👉 **http://localhost:8000**
-
----
-
-## 💻 Local Setup (Without Docker)
-
-### 1. Requirements
-* Python 3.10+
-* pip
-
-### 2. Installation
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Environment Configuration
-Copy the template environment file and set your keys:
-```bash
 cp .env.example .env
-```
-In your `.env` (or Vercel Project Settings > Environment Variables):
-```env
-AMD_RADEON_API_KEY=your_amd_key_here
-EVOLUS_WORKSPACE_ID=5f96b97d-e488-44dc-973d-09c30c5625aa
-EVOLUS_AGENT_ID=aa475004-2f3e-4b8c-93cd-0676450c5058
-EVOLUS_API_KEY=your_evolus_api_key_if_available
-DATABASE_URL=sqlite:///./neuroforge.db
-SECRET_KEY=your_random_secret_key
-```
+# Fill in your keys
+
+docker compose up --build
 
 ### 4. Run the Server
 ```bash
@@ -103,48 +63,69 @@ python -m uvicorn backend.main:app --reload --port 8000
 Open **`http://localhost:8000`** in your browser.
 
 ---
+ ENVIRONMENT Variables 
+# Required for AI
+AMD_RADEON_API_KEY=your_amd_key
+EVOLUS_WORKSPACE_ID=your_workspace_id
+EVOLUS_AGENT_ID=your_agent_id
+EVOLUS_API_KEY=your_evolus_key          # optional but preferred
 
-## ☁️ Vercel Deployment
+# App
+SECRET_KEY=generate_a_long_random_string
+DATABASE_URL=sqlite:///./neuroforge.db
 
-NeuroForge is pre-configured for **Vercel** with zero-config serverless FastAPI routing via [`vercel.json`](vercel.json) and [`api/index.py`](api/index.py):
-1. Import this repository into your Vercel Dashboard.
-2. In **Project Settings ➔ Environment Variables**, add:
-   * `AMD_RADEON_API_KEY`
-   * `EVOLUS_WORKSPACE_ID`
-   * `EVOLUS_AGENT_ID`
-   * `EVOLUS_API_KEY`
-   * `SECRET_KEY`
-   * `DATABASE_URL` *(optional, defaults to SQLite `/tmp/neuroforge.db` or your Supabase PostgreSQL URL)*
-3. Deploy! Vercel automatically serves the responsive frontend and routes API endpoints (`/health`, `/analyze`, `/ask`, `/evolus/info`) to the serverless Python handler.
+# Email (for signup verification)
+BREVO_API_KEY=your_brevo_key
+BREVO_SENDER_EMAIL=verify@neuroforge.ai
+BREVO_SENDER_NAME=NeuroForge Security
+  
 
----
+## 📡 API Endpoints
 
-## 📡 Key API Endpoints
+| Method | Endpoint                        | Description                                      | Auth Required |
+|--------|----------------------------------|--------------------------------------------------|---------------|
+| GET    | `/health`                        | Health check + orchestration status              | No            |
+| GET    | `/evolus/info`                   | Evolus workspace + AMD model info                | No            |
+| POST   | `/evolus/sync`                   | Sync with Evolus workspace                       | No            |
+| POST   | `/analyze`                       | Upload CSV and run full analysis                 | Optional      |
+| POST   | `/import-url`                    | Scrape & analyze Amazon / Trustpilot URL         | No            |
+| POST   | `/ask`                           | Ask questions about reviews (chatbot)            | No            |
+| POST   | `/auth/send-verification`        | Send 6-digit email verification code             | No            |
+| POST   | `/auth/verify-code`              | Verify the email code                            | No            |
+| POST   | `/auth/signup`                   | Create new account                               | No            |
+| POST   | `/auth/token`                    | Login → Get JWT token                            | No            |
+| GET    | `/auth/me`                       | Get current user info                            | Yes           |
+| POST   | `/projects`                      | Create a new project                             | Yes           |
+| GET    | `/projects`                      | List user's projects                             | Yes           |
+| GET    | `/projects/{project_id}/analysis`| Get analysis of a project                        | Yes           |
+| GET    | `/jobs/{job_id}`                 | Check analysis job status                        | Yes           |
+| POST   | `/webhooks/subscribe`            | Subscribe to analysis webhooks                   | Yes           |
+| GET    | `/webhooks/subscriptions`        | List webhook subscriptions                       | Yes           |
+| DELETE | `/webhooks/subscriptions/{id}`   | Delete a webhook subscription                    | Yes           |
+| POST   | `/api/keys`                      | Create a new API key                             | Yes           |
+| GET    | `/api/keys`                      | List API keys                                    | Yes           |
+| DELETE | `/api/keys/{key_id}`             | Revoke an API key                                | Yes           |
+| POST   | `/api/v1/analyze`                | Programmatic CSV analysis (API key)              | API Key       |
+| GET    | `/api/v1/jobs/{job_id}`          | Get job status (API key)                         | API Key       |
+| GET    | `/api/v1/projects/{id}/analysis` | Get project analysis (API key)                   | API Key       |
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/health` | Health check & orchestration diagnostics |
-| `GET` | `/evolus/info` | Evolus Workspace & AMD model verification |
-| `POST` | `/evolus/sync` | Sync review dataset with Evolus agent |
-| `POST` | `/analyze` | Upload CSV and process sentiment & topics |
-| `POST` | `/ask` | Conversational Q&A agent over customer reviews |
-| `POST` | `/import-url` | Scrape reviews from live product URL |
-| `POST` | `/auth/signup` | User registration |
-| `POST` | `/auth/token` | OAuth2 Bearer token generation |
-| `POST` | `/api/keys` | Create programmatic API keys |
-| `POST` | `/webhooks/subscribe` | Register webhook for analysis event callbacks |
 
----
+### 🌉 Architecture flow
+|Frontend (Vanilla JS)
+        ↓
+FastAPI Backend
+        ├── CSV cleaning + column detection
+        ├── ReviewScraper (Amazon / Trustpilot + SSRF protection)
+        ├── ReviewAnalyzer
+        │       ├── Evolus AI Agent (primary)
+        │       └── AMD Radeon DeepSeek-V4-Flash (fallback)
+        ├── Auth + Projects + API Keys
+        └── Webhook dispatcher
 
-## 🧪 Testing with Demo Data
-A realistic dataset of customer reviews is included in the root directory:
-* [`sample_reviews_real.csv`](sample_reviews_real.csv)
-You can upload this file directly in the web UI or click **"Use demo reviews"** on the dashboard.
 
----
 
-## 👥 Hackathon Submission Info
-* **Event**: AMD Developer Hackathon: ACT III
-* **Track**: Evolus AI Agent & AMD Hardware Acceleration
-* **Evolus Workspace ID**: `5f96b97d-e488-44dc-973d-09c30c5625aa`
-* **Evolus Agent ID**: `aa475004-2f3e-4b8c-93cd-0676450c5058` (`Review Insight Analyst`)
+### ℹ️ Hackathon Details
+
+Event: AMD Developer Hackathon – ACT III
+Track: Evolus AI Agent + AMD Hardware Acceleration
+Agent: Review Insight Analyst
