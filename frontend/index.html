@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>NeuroForge — AI-Powered Review Intelligence</title>
   <meta name="description" content="Instantly understand what your customers think. Turn hundreds of customer reviews into actionable insights." />
-  <meta name="theme-color" content="#07080a" />
-  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#4da6e9" />
+  <meta name="color-scheme" content="light" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,600;1,700&display=swap" rel="stylesheet" />
@@ -18,256 +18,156 @@
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
   <div class="app-shell">
-    <!-- Sticky Navigation Bar -->
-    <header class="navbar-wrapper">
-      <nav class="navbar" aria-label="Primary Navigation">
-        <a href="#top" class="brand-group" aria-label="NeuroForge Homepage">
-          <div class="brand-logo-mark" aria-hidden="true">
-            <div class="brand-logo-inner">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#00f0ff"/>
-                <path d="M2 17l10 5 10-5" stroke="#00d2aa"/>
-                <path d="M2 12l10 5 10-5" stroke="#38bdf8"/>
-              </svg>
-            </div>
-          </div>
-          <div class="brand-text-wrap">
-            <span class="brand-title">NeuroForge</span>
-            <span class="brand-tagline">AI-Powered Review Intelligence</span>
-          </div>
-        </a>
-
-        <div class="nav-links">
-          <a href="#download" class="nav-item">Download</a>
-          <a href="#overview" class="nav-item">Overview</a>
-          <a href="#sentiment" class="nav-item">Sentiment</a>
-          <a href="#topics" class="nav-item">Topics</a>
-          <a href="#ask" class="nav-item">Ask AI</a>
-          <a href="#reviews" class="nav-item">All Reviews</a>
-        </div>
-
-        <div class="nav-meta-group">
-          <div class="status-pill status-pill--online" id="backend-status-pill" title="Backend Status">
-            <span class="status-indicator-dot" id="backend-status-dot" aria-hidden="true"></span>
-            <span id="backend-status-text">System Online</span>
-          </div>
-          
-          <!-- User / Sign In Pill -->
-          <button type="button" class="user-pill-btn" id="nav-login-btn" title="Account / Sign In">
-            <svg class="user-pill-avatar" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span id="nav-user-label">jawad52852</span>
-            <svg class="user-pill-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-
-          <button type="button" class="mobile-nav-toggle" id="mobile-toggle-btn" aria-label="Toggle Navigation Menu">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-      </nav>
-
-      <!-- Mobile Dropdown Navigation -->
-      <div class="mobile-menu-drawer" id="mobile-menu">
-        <a href="#download" class="nav-item">Download</a>
-        <a href="#overview" class="nav-item">Overview</a>
-        <a href="#sentiment" class="nav-item">Sentiment</a>
-        <a href="#topics" class="nav-item">Topics</a>
-        <a href="#ask" class="nav-item">Ask AI</a>
-        <a href="#reviews" class="nav-item">All Reviews</a>
-      </div>
-    </header>
-
     <main id="top">
-      <!-- Hero Section -->
+      <!-- Hero Section with Sky & Cloud Aesthetic extending to the very top -->
       <section class="hero-section">
-        <!-- Glowing Wavy Background Ribbon -->
-        <div class="hero-wave-backdrop" aria-hidden="true">
-          <svg viewBox="0 0 1440 320" fill="none" preserveAspectRatio="none">
-            <path d="M-50 200 C 300 280, 500 120, 800 210 C 1100 300, 1300 160, 1500 240" stroke="url(#heroCyanGrad)" stroke-width="2.5" opacity="0.6"/>
-            <path d="M-50 220 C 280 140, 600 260, 950 170 C 1200 100, 1350 230, 1500 210" stroke="url(#heroCyanGlowGrad)" stroke-width="1.2" opacity="0.4"/>
-            <defs>
-              <linearGradient id="heroCyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.1"/>
-                <stop offset="40%" stop-color="#00f0ff" stop-opacity="0.8"/>
-                <stop offset="70%" stop-color="#00d2aa" stop-opacity="0.6"/>
-                <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.1"/>
-              </linearGradient>
-              <linearGradient id="heroCyanGlowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.1"/>
-                <stop offset="50%" stop-color="#00f0ff" stop-opacity="0.6"/>
-                <stop offset="100%" stop-color="#00d2aa" stop-opacity="0.1"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        <div class="container hero-container">
-          <div class="hero-grid-three">
-            <!-- Left Column: Copy & Actions -->
-            <div class="hero-content">
-              <div class="hero-eyebrow-cyan">
-                AI POWERED REVIEW ANALYSIS
+        <!-- Transparent Navigation Bar Sitting Over Hero Image -->
+        <header class="navbar-wrapper">
+          <nav class="navbar" aria-label="Primary Navigation">
+            <!-- LOGO: Redesigned Animated Neural Network Emblem + NeuroForge Title -->
+            <a href="#top" class="brand-group" aria-label="NeuroForge Homepage">
+              <div class="brand-logo-mark" aria-hidden="true">
+                <svg viewBox="0 0 34 34" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="nfBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#0a0f1d"/>
+                      <stop offset="50%" stop-color="#0f172a"/>
+                      <stop offset="100%" stop-color="#0369a1"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="34" height="34" rx="10" fill="url(#nfBrandGrad)"/>
+                  <!-- Synapse Outer Orbit Pathways -->
+                  <path d="M17 8L25 19L17 26L9 19Z" stroke="rgba(56, 189, 248, 0.35)" stroke-width="1" stroke-linejoin="round"/>
+                  <!-- Synaptic Radial Connections -->
+                  <line class="synapse-line" x1="17" y1="17" x2="17" y2="8" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.3" stroke-dasharray="3 2"/>
+                  <line class="synapse-line" x1="17" y1="17" x2="25" y2="19" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.3" stroke-dasharray="3 2"/>
+                  <line class="synapse-line" x1="17" y1="17" x2="17" y2="26" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.3" stroke-dasharray="3 2"/>
+                  <line class="synapse-line" x1="17" y1="17" x2="9" y2="19" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.3" stroke-dasharray="3 2"/>
+                  <!-- Central Pulse Emission Wave -->
+                  <circle class="neural-pulse-ring" cx="17" cy="17" r="4" stroke="#38bdf8" stroke-width="1.2" fill="none"/>
+                  <!-- Satellite Neural Nodes -->
+                  <circle class="neural-node node-1" cx="17" cy="8" r="2.2" fill="#38bdf8"/>
+                  <circle class="neural-node node-2" cx="25" cy="19" r="2" fill="#ffffff"/>
+                  <circle class="neural-node node-3" cx="17" cy="26" r="2.2" fill="#38bdf8"/>
+                  <circle class="neural-node node-4" cx="9" cy="19" r="2" fill="#ffffff"/>
+                  <!-- Central Forge AI Core -->
+                  <circle class="neural-core" cx="17" cy="17" r="3.2" fill="#ffffff"/>
+                </svg>
               </div>
-              <h1 class="hero-title-main">
-                Turn Your<br />
-                Feedback Into<br />
-                <span class="hero-highlight-cyan">Real Insights.</span>
-              </h1>
-              <p class="hero-desc-clean">
-                NeuroForge instantly highlights what your customers love, hate, and what you can improve.
-              </p>
-              <div class="hero-cta-row">
-                <a href="#reviews" class="btn btn-pill-cyan" id="hero-cta-reviews">
-                  <span class="cta-sparkle">✦</span>
-                  <span>View Reviews</span>
-                  <span class="cta-arrow">→</span>
-                </a>
-                <a href="#overview" class="btn btn-pill-glass" id="hero-cta-dashboard">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="7" height="9" rx="1.5"></rect>
-                    <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
-                    <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
-                    <rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
+              <div class="brand-text-wrap">
+                <span class="brand-title"><span class="brand-neuro">Neuro</span><span class="brand-forge">Forge</span></span>
+              </div>
+            </a>
+
+            <!-- 2. NAVBAR: Centered pill with Home, Analyze, Dashboard, Reviews, About -->
+            <div class="nav-links">
+              <a href="#top" class="nav-item is-active">Home</a>
+              <a href="#upload" class="nav-item">Analyze</a>
+              <a href="#overview" class="nav-item">Dashboard</a>
+              <a href="#reviews" class="nav-item">Reviews</a>
+              <a href="#site-footer" class="nav-item">About</a>
+            </div>
+
+            <!-- Right side: Logged-in User profile pill -->
+            <div class="nav-meta-group">
+
+              <!-- User profile pill (visible when logged in) -->
+              <div class="nav-user-pill" id="nav-user-profile" style="display: none;">
+                <div class="nav-user-avatar" id="nav-user-avatar">NF</div>
+                <span class="nav-user-label" id="nav-user-label">User</span>
+                <button type="button" class="nav-logout-btn" id="nav-logout-btn" title="Sign out" aria-label="Sign out">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
                   </svg>
-                  <span>View Dashboard</span>
-                </a>
+                </button>
               </div>
+
+              <button type="button" class="mobile-nav-toggle" id="mobile-toggle-btn" aria-label="Toggle Navigation Menu">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="3" y1="12" x2="21" y2="12"></line>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+              </button>
             </div>
+          </nav>
 
-            <!-- Center Column: 3D Holographic Glass Card -->
-            <div class="hero-card-col">
-              <div class="artwork-3d-card" id="artwork-card" role="img" aria-label="NeuroForge 3D Intelligence Artwork">
-                <div class="artwork-glow-radial" aria-hidden="true"></div>
+          <!-- Mobile Dropdown Navigation -->
+          <div class="mobile-menu-drawer" id="mobile-menu">
+            <a href="#top" class="mobile-nav-item">Home</a>
+            <a href="#upload" class="mobile-nav-item">Analyze</a>
+            <a href="#overview" class="mobile-nav-item">Dashboard</a>
+            <a href="#reviews" class="mobile-nav-item">Reviews</a>
+            <a href="#site-footer" class="mobile-nav-item">About</a>
+            <div class="mobile-menu-actions" id="mobile-auth-actions">
+              <button type="button" class="btn-nav-login mobile-login-btn" id="mobile-login-btn">Login</button>
+              <button type="button" class="btn-nav-signup mobile-signup-btn" id="mobile-signup-btn">Sign up</button>
+            </div>
+          </div>
+        </header>
 
-                <!-- Card Top Badges Row -->
-                <div class="card-hero-badges-row">
-                  <div class="card-metric-badge badge--pos">
-                    <div class="metric-badge-icon badge-icon--green">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-                        <line x1="9" y1="9" x2="9.01" y2="9"></line>
-                        <line x1="15" y1="9" x2="15.01" y2="9"></line>
-                      </svg>
-                    </div>
-                    <div class="metric-badge-texts">
-                      <div class="metric-badge-val" id="card-hero-pos-val">94% <span class="badge-sub-label">Positive Sentiment</span></div>
-                      <div class="metric-badge-quote" id="card-hero-pos-quote">"Customers love the sound quality!"</div>
-                    </div>
-                  </div>
-
-                  <div class="card-metric-badge badge--rating">
-                    <div class="metric-badge-icon badge-icon--blue">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                      </svg>
-                    </div>
-                    <div class="metric-badge-texts">
-                      <div class="metric-badge-val" id="card-hero-rating-val">4.9 / 5.0 <span class="badge-sub-label">Rating</span></div>
-                      <div class="metric-badge-quote">Real Customer Feedback</div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 3D Isometric Animated Core -->
-                <div class="artwork-scene-3d">
-                  <!-- Ground Circular Discs in 3D perspective -->
-                  <div class="pedestal-disc pedestal-disc--outer"></div>
-                  <div class="pedestal-disc pedestal-disc--middle"></div>
-                  <div class="pedestal-disc pedestal-disc--inner"></div>
-                  <div class="pedestal-glow-spot"></div>
-
-                  <!-- Center 3D Isometric Cube / Stack -->
-                  <div class="isometric-core-unit">
-                    <div class="isometric-cube-visual">
-                      <div class="iso-plate plate-top"></div>
-                      <div class="iso-plate plate-mid"></div>
-                      <div class="iso-plate plate-bot"></div>
-                    </div>
-                  </div>
-
-                  <!-- Floating Particle Sparks -->
-                  <span class="particle-spark spark-1">✦</span>
-                  <span class="particle-spark spark-2">✦</span>
-                  <span class="particle-spark spark-3">✦</span>
-                  <span class="particle-spark spark-4">✦</span>
-                  <span class="particle-dot dot-1"></span>
-                  <span class="particle-dot dot-2"></span>
-                  <span class="particle-dot dot-3"></span>
-                </div>
-
-                <!-- Bottom Action Insights Card -->
-                <div class="card-action-insight-box">
-                  <div class="action-insight-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                    </svg>
-                  </div>
-                  <div class="action-insight-text">
-                    <div class="action-insight-title">Instant Action Insights</div>
-                    <div class="action-insight-sub" id="card-hero-insight-sub">"Battery &amp; setup friction detected"</div>
-                  </div>
-                </div>
-
-                <!-- Artwork Footer Bar -->
-                <div class="artwork-footer-bar">
-                  <div class="artwork-pulse-indicator">
-                    <span class="artwork-dot-cyan"></span>
-                    <span>NeuroForge Live Intelligence</span>
-                  </div>
-                  <span class="artwork-tag" id="telemetry-dataset-status">20 Reviews Ready</span>
-                </div>
-              </div>
+        <!-- Hero Content -->
+        <div class="container hero-container hero-container-centered">
+          <div class="hero-content-center">
+            <h1 class="hero-title-main">
+              Turn customer feedback into<br />clear, decisive intelligence.
+            </h1>
+            <p class="hero-desc-clean">
+              NeuroForge synthesizes thousands of customer reviews into instant, actionable clarity. Uncover authentic sentiment, isolate root friction points, and make confident product decisions without the noise.
+            </p>
+            <!-- HERO BUTTONS: Centered Sign up (obsidian-black, primary) and Login (crisp white, secondary) -->
+            <div class="hero-cta-row hero-cta-centered" id="hero-auth-cta-row">
+              <button type="button" class="btn btn-pill-dark hero-btn-signup" id="hero-cta-signup">
+                <span>Sign up</span>
+              </button>
+              <button type="button" class="btn btn-pill-light hero-btn-login" id="hero-cta-login">
+                <span>Login</span>
+              </button>
+            </div>
+            <!-- HERO BUTTONS (when logged in): Replace login/signup with direct actions -->
+            <div class="hero-cta-row hero-cta-centered" id="hero-user-cta-row" style="display: none;">
+              <a href="#upload" class="btn btn-pill-dark">
+                <span>Analyze Reviews</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              <a href="#overview" class="btn btn-pill-light">
+                <span>Open Dashboard</span>
+              </a>
             </div>
           </div>
 
-          <!-- Bottom Full-Width Interactive Demo Strip -->
-          <div class="hero-demo-strip">
-            <div class="strip-left">
-              <span class="strip-sparkle">✦</span>
-              <span class="strip-text">Explore our instant demo to see your insights.</span>
-            </div>
-            <button type="button" class="strip-btn" id="strip-demo-btn">
-              <span>Instant Analysis</span>
-              <span class="strip-arrow">→</span>
-            </button>
-          </div>
-
-          <!-- Trust & Value Badges Row -->
+          <!-- TRUST ROW: Secure & Private, AI Powered Insights, Real-time Analysis, Smarter Decisions -->
           <div class="hero-trust-row">
             <div class="trust-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-500)" stroke-width="2">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-sky)" stroke-width="2.2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                 <polyline points="9 12 11 14 15 10"></polyline>
               </svg>
               <span>Secure &amp; Private</span>
             </div>
             <div class="trust-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-500)" stroke-width="2">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-sky)" stroke-width="2.2">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
               <span>AI Powered Insights</span>
             </div>
             <div class="trust-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-500)" stroke-width="2">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-sky)" stroke-width="2.2">
                 <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
               </svg>
               <span>Real-time Analysis</span>
             </div>
             <div class="trust-item">
-              <span style="color:var(--cyan-500);font-size:1.1rem;line-height:1;">✦</span>
+              <span style="color:var(--accent-sky);font-size:1.1rem;line-height:1;">✦</span>
               <span>Smarter Decisions</span>
             </div>
           </div>
         </div>
+
+        <!-- 4. GRADIENT OVERLAY (Transparent to White) for seamless transition into pure white below -->
+        <div class="hero-bottom-fade" aria-hidden="true"></div>
       </section>
 
       <!-- Ingestion & Upload Workspace -->
@@ -276,7 +176,7 @@
           <div class="card-header">
             <div class="card-title-group">
               <h2 class="card-title">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--emerald-400)" stroke-width="2.2">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-sky)" stroke-width="2.2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="17 8 12 3 7 8"/>
                   <line x1="12" y1="3" x2="12" y2="15"/>
@@ -854,7 +754,7 @@
     </main>
 
     <!-- Professional Website Footer -->
-    <footer class="site-footer">
+    <footer class="site-footer" id="site-footer">
       <div class="container">
         <div class="footer-inner">
           <div class="footer-brand-col">
@@ -897,14 +797,33 @@
     <div class="auth-modal-card" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
       <button type="button" class="auth-close-btn" id="auth-modal-close" aria-label="Close dialog">&times;</button>
       <div class="auth-header">
-        <div class="brand-logo-mark" style="width:36px;height:36px;margin:0 auto 10px;" aria-hidden="true">
-          <div class="brand-logo-inner">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#34d399"/>
-              <path d="M2 17l10 5 10-5" stroke="#10b981"/>
-              <path d="M2 12l10 5 10-5" stroke="#e5c158"/>
-            </svg>
-          </div>
+        <div class="brand-logo-mark" style="width:42px;height:42px;margin:0 auto 12px;" aria-hidden="true">
+          <svg viewBox="0 0 34 34" width="42" height="42" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="nfAuthModalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0a0f1d"/>
+                <stop offset="50%" stop-color="#0f172a"/>
+                <stop offset="100%" stop-color="#0369a1"/>
+              </linearGradient>
+            </defs>
+            <rect width="34" height="34" rx="10" fill="url(#nfAuthModalGrad)"/>
+            <!-- Synapse Outer Orbit Pathways -->
+            <path d="M17 8L25 19L17 26L9 19Z" stroke="rgba(56, 189, 248, 0.35)" stroke-width="1" stroke-linejoin="round"/>
+            <!-- Synaptic Radial Connections -->
+            <line class="synapse-line" x1="17" y1="17" x2="17" y2="8" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.3" stroke-dasharray="3 2"/>
+            <line class="synapse-line" x1="17" y1="17" x2="25" y2="19" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.3" stroke-dasharray="3 2"/>
+            <line class="synapse-line" x1="17" y1="17" x2="17" y2="26" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.3" stroke-dasharray="3 2"/>
+            <line class="synapse-line" x1="17" y1="17" x2="9" y2="19" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.3" stroke-dasharray="3 2"/>
+            <!-- Central Pulse Emission Wave -->
+            <circle class="neural-pulse-ring" cx="17" cy="17" r="4" stroke="#38bdf8" stroke-width="1.2" fill="none"/>
+            <!-- Satellite Neural Nodes -->
+            <circle class="neural-node node-1" cx="17" cy="8" r="2.2" fill="#38bdf8"/>
+            <circle class="neural-node node-2" cx="25" cy="19" r="2" fill="#ffffff"/>
+            <circle class="neural-node node-3" cx="17" cy="26" r="2.2" fill="#38bdf8"/>
+            <circle class="neural-node node-4" cx="9" cy="19" r="2" fill="#ffffff"/>
+            <!-- Central Forge AI Core -->
+            <circle class="neural-core" cx="17" cy="17" r="3.2" fill="#ffffff"/>
+          </svg>
         </div>
         <h3 class="auth-title" id="auth-modal-title">Welcome to NeuroForge</h3>
         <p class="auth-sub">Sign in to sync your reviews and access past analyses.</p>
